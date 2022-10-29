@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include <windows.h>
 
+//#include <vulkan/vulkan.h>
+#include <GLFW/glfw3.h>
+
 typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
@@ -16,14 +19,39 @@ typedef uint16_t u16;
 typedef float f32;
 typedef double f64;
 
-#define GIGABYTE(a) a * 1024*1024*1024
+#define GIGABYTE(a) (u64) a * 1000*1000*1000
 
-int main() {
-	const i64 heap_allocation_size = (i64) GIGABYTE(1);
-	u8 * data = (u8*) malloc(heap_allocation_size);
-	i64 i = 0;
-	printf("hello world!\nsize of i64: %lld", sizeof(i64));
-	for (;;) {
-		Sleep(1);
-	}
+int main(void)
+{
+	u8 * memory_pool = (u8*) malloc(GIGABYTE(1));
+    GLFWwindow* window;
+
+    /* Initialize the library */
+    if (!glfwInit())
+        return -1;
+
+    /* Create a windowed mode window and its OpenGL context */
+    window = glfwCreateWindow(1280, 720, "CPP Voxels!!", NULL, NULL);
+    if (!window)
+    {
+        glfwTerminate();
+		printf("unable to create the window");
+        return -1;
+    }
+
+    /* Make the window's context current */
+    glfwMakeContextCurrent(window);
+
+    /* Loop until the user closes the window */
+    while (!glfwWindowShouldClose(window))
+    {
+        /* Swap front and back buffers */
+        glfwSwapBuffers(window);
+
+        /* Poll for and process events */
+        glfwPollEvents();
+    }
+
+    glfwTerminate();
+    return 0;
 }
