@@ -21,17 +21,21 @@ typedef uint16_t u16;
 typedef float f32;
 typedef double f64;
 
-inline void Assert(u8 b) {
-	if (!b) {
-		*((char*) 0) = 0;
-	}
+inline void assert(u8 b) {
+	#ifndef NDEBUG
+		if (!b) {
+			*((char*) 0) = 0;
+		}
+	#endif
 }
 
-int main(void)
-{
+int main(void) {
+	#ifndef NDEBUG
+		printf("IN DEBUG MODE\n");
+	#endif
+
 	/* Initialize the library */
-	if (!glfwInit())
-	{
+	if (!glfwInit()) {
 		printf("unable to initialize glfw!\n");
 		return 1;
 	}
@@ -56,7 +60,7 @@ int main(void)
 		//mac os thing
 		//VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
 	};
-	Assert(glfwExtensionCount + requiredExtensionCount < requiredExtensionCapacity);
+	assert(glfwExtensionCount + requiredExtensionCount < requiredExtensionCapacity);
 	for (i32 i=0; i < glfwExtensionCount; i++) {
 		requiredExtensions[i+requiredExtensionCount] = glfwExtensions[i];
 	}
@@ -90,30 +94,58 @@ int main(void)
 		}
 	}
 
-	VkInstanceCreateInfo createInfo{};
+	i32 validationLayerCount = 1;
+	const char * validationLayers [1] = {
+		"VK_LAYER_KHRONOS_validation",
+	};
+
+	#ifdef NDEBUG
+		const u8 enableValidationLayers = 0;
+	#else
+		const u8 enableValidationLayers = 1;
+	#endif
+
+	VkInstanceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	createInfo.pApplicationInfo = &appInfo;
 
-	createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+	//macos thing
+	//createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+	createInfo.flags = 0;
 
 	createInfo.enabledExtensionCount = extensionCount;
 	createInfo.ppEnabledExtensionNames = extensionNames;
 	createInfo.enabledLayerCount = 0;
 
+	if (enableValidationLayers) {
+		u32 layerCount;
+		vkEnumerateInstanceLayerProperties(&layerCount, NULL);
+		VkLayerProperties * availableLayers = (VkLayerProperties *) _malloca(layerCount * sizeof(VkLayerProperties));
+		for (i32 i = 0; i < validationLayerCount; i++) {
+			u8 found = 0;
+			for (i32 j = 0; j < layerCount; j++) {
+				if (strcmp(validationLayers[i], availableLayers[j].layerName) == 0) {
+					printf("validation layer %s is not supported", validationLayers[i]);
+					return 1;
+				}
+			}
+		}
+		createInfo.enabledLayerCount = validationLayerCount;
+		createInfo.ppEnabledLayerNames = validationLayers;
+	}
+
 	VkInstance instance;
 
-
 	if(vkCreateInstance(&createInfo, NULL, &instance) != VK_SUCCESS) {
-		fprintf(stderr, "failed to create instance!");
+		fprintf(stderr, "failed to create instance!\n");
 		return 1;
 	}
 
 	/* Create a windowed mode window and its OpenGL context */
 	GLFWwindow* window = glfwCreateWindow(1280, 720, "CPP Voxels!!", NULL, NULL);
-	if (!window)
-	{
+	if (!window) {
 		glfwTerminate();
-		printf("unable to create the window");
+		printf("unable to create the window\n");
 		return 1;
 	}
 
@@ -121,8 +153,7 @@ int main(void)
 	glfwMakeContextCurrent(window);
 
 	/* Loop until the user closes the window */
-	while (!glfwWindowShouldClose(window))
-	{
+	while (!glfwWindowShouldClose(window)) {
 		/* Swap front and back buffers */
 		glfwSwapBuffers(window);
 
