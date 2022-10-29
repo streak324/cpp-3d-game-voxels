@@ -21,6 +21,8 @@ typedef uint16_t u16;
 typedef float f32;
 typedef double f64;
 
+#define nil nullptr
+
 inline void assert(u8 b) {
 	#ifndef NDEBUG
 		if (!b) {
@@ -67,11 +69,11 @@ int main(void) {
 	requiredExtensionCount += glfwExtensionCount;
 
 	u32 extensionCount = 0;
-	vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, NULL);
+	vkEnumerateInstanceExtensionProperties(nil, &extensionCount, nil);
 
 	VkExtensionProperties * extensions = (VkExtensionProperties*) _malloca(extensionCount * sizeof(VkExtensionProperties));
 	const char* *extensionNames = (const char**) _malloca(extensionCount * sizeof(char*));
-	vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, extensions);
+	vkEnumerateInstanceExtensionProperties(nil, &extensionCount, extensions);
 
 	for (i32 i=0; i < extensionCount; i++) {
 		printf("extension: %s\n", extensions[i].extensionName);
@@ -119,7 +121,7 @@ int main(void) {
 
 	if (enableValidationLayers) {
 		u32 layerCount;
-		vkEnumerateInstanceLayerProperties(&layerCount, NULL);
+		vkEnumerateInstanceLayerProperties(&layerCount, nil);
 		VkLayerProperties * availableLayers = (VkLayerProperties *) _malloca(layerCount * sizeof(VkLayerProperties));
 		for (i32 i = 0; i < validationLayerCount; i++) {
 			u8 found = 0;
@@ -136,13 +138,72 @@ int main(void) {
 
 	VkInstance instance;
 
-	if(vkCreateInstance(&createInfo, NULL, &instance) != VK_SUCCESS) {
+	if(vkCreateInstance(&createInfo, nil, &instance) != VK_SUCCESS) {
 		fprintf(stderr, "failed to create instance!\n");
 		return 1;
 	}
 
+	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+	u32 deviceCount = 0;
+	vkEnumeratePhysicalDevices(instance, &deviceCount, nil);
+	if (deviceCount == 0) {
+		printf("there are no found physical devices with Vulkan support!");
+		return 1;
+	}
+
+	VkPhysicalDevice * availableDevices = (VkPhysicalDevice *) _malloca(deviceCount * sizeof(VkPhysicalDevice));
+	vkEnumeratePhysicalDevices(instance, &deviceCount, availableDevices);
+
+	i32 pickedDeviceIndex = -1;
+	for (;;) {
+		printf("Pick GPU to use from %d to %d:\n", 1, deviceCount);
+		for (u32 i = 0; i < deviceCount; i++) {
+			VkPhysicalDeviceProperties physicalDeviceProperties;
+			vkGetPhysicalDeviceProperties(availableDevices[i], &physicalDeviceProperties);
+			printf("[%d] - %s\n",  i+1, physicalDeviceProperties.deviceName);
+		}
+		printf("Choice: ");
+
+		const u32 userInputBufferSize = 32;
+		char userInput[userInputBufferSize] = {};
+		fgets(userInput, userInputBufferSize, stdin);
+
+		pickedDeviceIndex = atoi(userInput) - 1;
+		if (pickedDeviceIndex >= 0 && pickedDeviceIndex < deviceCount) {
+			break;
+		}
+	}
+
+	physicalDevice = availableDevices[pickedDeviceIndex];
+
+	if (physicalDevice == VK_NULL_HANDLE) {
+		printf("failed to find a suitable GPU\n");
+		return 1;
+	}
+
+	//TODO: check device features and device suitability
+	VkPhysicalDeviceFeatures deviceFeatures;
+	vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
+
+	u32	queueFamilyCount = 0;
+	u8 foundGraphicsQueueFamily = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nil);
+	VkQueueFamilyProperties * queueFamilyProperties = (VkQueueFamilyProperties *) _malloca(queueFamilyCount * sizeof(VkQueueFamilyProperties));
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilyProperties);
+	for (u32 i = 0; i < queueFamilyCount; i++) {
+		if (queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+			printf("queue family %d supports graphics operations\n", i);
+			foundGraphicsQueueFamily = 1;
+		}
+	}
+
+	if (!foundGraphicsQueueFamily) {
+		printf("device doesn't support graphics operations!!!\n");
+		return 1;
+	}
+
 	/* Create a windowed mode window and its OpenGL context */
-	GLFWwindow* window = glfwCreateWindow(1280, 720, "CPP Voxels!!", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(1280, 720, "CPP Voxels!!", nil, nil);
 	if (!window) {
 		glfwTerminate();
 		printf("unable to create the window\n");
