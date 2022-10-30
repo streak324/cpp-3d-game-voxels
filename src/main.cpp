@@ -432,7 +432,28 @@ int main(void) {
 	u32 swapchainImagesCount = 0;
 	vkGetSwapchainImagesKHR(device, swapchain, &swapchainImagesCount, nil);
 	VkImage * swapchainImages = (VkImage *) _malloca(swapchainImagesCount, sizeof(VkImage));
-	vkGetSwapchainImagesKHR(device, swapchain, &swapchainImagesCount, nil);
+	vkGetSwapchainImagesKHR(device, swapchain, &swapchainImagesCount, swapchainImages);
+
+	VkImageView * swapchainImageViews = (VkImageView *) _malloca(swapchainImagesCount * sizeof(VkImageView));
+
+	for (u32 i = 0; i < swapchainImagesCount; i++) {
+		VkImageViewCreateInfo createInfo = {};
+		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		createInfo.image = swapchainImages[i];
+		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		createInfo.format = desiredSurfaceFormat.format;
+		createInfo.components.r = VK_COMPONENT_SWIZZLE_A;
+		createInfo.components.g = VK_COMPONENT_SWIZZLE_A;
+		createInfo.components.b = VK_COMPONENT_SWIZZLE_A;
+		createInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		createInfo.subresourceRange.baseMipLevel = 0;
+		createInfo.subresourceRange.levelCount = 1;
+		createInfo.subresourceRange.baseArrayLayer = 0;
+		createInfo.subresourceRange.layerCount = 1;
+
+		vkCreateImageView(device, &createInfo, nil, &swapchainImageViews[i]);
+	}
 
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
