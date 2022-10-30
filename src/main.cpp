@@ -26,6 +26,9 @@ typedef double f64;
 
 #define nil nullptr
 
+#define min(a, b) (a < b ? a : b)
+#define max(a, b) (a > b ? a : b)
+
 inline void assert(u8 b) {
 	#ifndef NDEBUG
 		if (!b) {
@@ -106,7 +109,7 @@ int main(void) {
 		}
 	}
 
-	i32 validationLayerCount = 1;
+	u32 validationLayerCount = 1;
 	const char * validationLayers [1] = {
 		"VK_LAYER_KHRONOS_validation",
 	};
@@ -174,7 +177,7 @@ int main(void) {
 	VkPhysicalDevice * availableDevices = (VkPhysicalDevice *) _malloca(deviceCount * sizeof(VkPhysicalDevice));
 	vkEnumeratePhysicalDevices(instance, &deviceCount, availableDevices);
 
-	i32 pickedDeviceIndex = -1;
+	u32 pickedDeviceIndex = -1;
 	for (;;) {
 		printf("Pick GPU to use from %d to %d:\n", 1, deviceCount);
 		for (u32 i = 0; i < deviceCount; i++) {
@@ -275,12 +278,37 @@ int main(void) {
 		queueCreateInfoCount = 2;
 	}
 
+	u32 requiredDeviceExtensionsCount = 1;
+	const char * requiredDeviceExtensions [1] = {
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+	};
+
+	u32 availableDeviceExtensionsCount = 0;
+	vkEnumerateDeviceExtensionProperties(physicalDevice, nil, &availableDeviceExtensionsCount, nil);
+	VkExtensionProperties * availableDeviceExtensions = (VkExtensionProperties *) _malloca(availableDeviceExtensionsCount * sizeof(VkExtensionProperties));
+	vkEnumerateDeviceExtensionProperties(physicalDevice, nil, &availableDeviceExtensionsCount, availableDeviceExtensions);
+
+	for (u32 i = 0; i < requiredDeviceExtensionsCount; i++) {
+		u8 found = 0;
+		for (u32 j = 0; j < availableDeviceExtensionsCount; j++) {
+			if (strcmp(requiredDeviceExtensions[i], availableDeviceExtensions[j].extensionName) == 0) {
+				found = 1;
+				break;
+			}
+		}
+		if (!found) {
+			printf("device does not support the required device extension: %s\n", requiredDeviceExtensions[i]);
+			return 1;
+		}
+	}
+
 	VkDeviceCreateInfo deviceCreateInfo = {};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	deviceCreateInfo.pQueueCreateInfos = queueCreateInfos;
 	deviceCreateInfo.queueCreateInfoCount = queueCreateInfoCount;
 	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
-	deviceCreateInfo.enabledExtensionCount = 0;
+	deviceCreateInfo.enabledExtensionCount = requiredDeviceExtensionsCount;
+	deviceCreateInfo.ppEnabledExtensionNames = requiredDeviceExtensions;
 	deviceCreateInfo.enabledLayerCount = 0;
 
 	if (enableValidationLayers) {
@@ -299,12 +327,112 @@ int main(void) {
 
 	vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &graphicsQueue);
 
-	if (graphicsQueueFamilyIndex == presentQueueFamilyIndex) {
+	if (isUsingSameQueueForGraphicsAndPresent) {
 		presentQueue = graphicsQueue;
 	} else {
 		vkGetDeviceQueue(device, presentQueueFamilyIndex, 0, &presentQueue);
 	}
 
+	VkSurfaceCapabilitiesKHR surfaceCapabilities;
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilities);
+
+	u32 availableSurfaceFormatsCount = 0;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &availableSurfaceFormatsCount, nil);
+	if (!availableSurfaceFormatsCount) {
+		printf("physical device does not support any surface formats!");
+		return 1;
+	}
+	VkSurfaceFormatKHR * availableSurfaceFormats = (VkSurfaceFormatKHR *) _malloca(availableSurfaceFormatsCount * sizeof(VkSurfaceFormatKHR));
+	vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &availableSurfaceFormatsCount, availableSurfaceFormats);	
+
+	VkSurfaceFormatKHR desiredSurfaceFormat; 
+	u8 foundDesiredSurfaceFormat = 0;
+	for (u32 i = 0; i < availableSurfaceFormatsCount; i++) {
+		if (availableSurfaceFormats[i].format == VK_FORMAT_B8G8R8A8_SRGB && availableSurfaceFormats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+			desiredSurfaceFormat = availableSurfaceFormats[i];
+			foundDesiredSurfaceFormat = 1;
+			break;
+		}
+	}
+	if (!foundDesiredSurfaceFormat) {
+		printf("did not find the desired surface format.\n");
+		return 1;
+	}
+
+	u32 presentModesCount = 0;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModesCount, nil);
+	if (!presentModesCount) {
+		printf("physical device does not support any present modes!");
+		return 1;
+	}
+	VkPresentModeKHR * presentModes = (VkPresentModeKHR *) _malloca(presentModesCount * sizeof(VkSurfaceFormatKHR));
+	vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModesCount, nil);
+
+	// VK_PRESENT_MODE_FIFO_KHR is guaranteed to be available
+	VkPresentModeKHR desiredPresentMode = VK_PRESENT_MODE_FIFO_KHR;
+	for (u32 i = 0; i < presentModesCount; i++) {
+		if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
+			desiredPresentMode = presentModes[i];
+		}
+	}
+
+	VkExtent2D swapExtent = {};
+
+	if (surfaceCapabilities.currentExtent.width ==  UINT32_MAX) {
+		i32 width, height;
+		glfwGetFramebufferSize(window, &width, &height);
+		swapExtent.width = max(min((u32) width, surfaceCapabilities.maxImageExtent.width), surfaceCapabilities.minImageExtent.width);
+		swapExtent.height = max(min((u32) height, surfaceCapabilities.maxImageExtent.height), surfaceCapabilities.minImageExtent.height);
+	} else {
+		swapExtent = surfaceCapabilities.currentExtent;
+	}
+
+	u32 imageCount = 3;
+	if (surfaceCapabilities.maxImageCount > 0) {
+		imageCount = max(imageCount, surfaceCapabilities.maxImageCount);
+	}
+
+	VkSwapchainCreateInfoKHR swapchainCreateInfo = {};
+	swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	swapchainCreateInfo.surface = surface;
+	swapchainCreateInfo.minImageCount = imageCount;
+	swapchainCreateInfo.imageFormat = desiredSurfaceFormat.format;
+	swapchainCreateInfo.imageColorSpace = desiredSurfaceFormat.colorSpace;
+	swapchainCreateInfo.imageExtent = swapExtent;
+	swapchainCreateInfo.imageArrayLayers = 1;
+	swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+	if (isUsingSameQueueForGraphicsAndPresent) {
+		//TODO: support exclusive mode
+		swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		swapchainCreateInfo.queueFamilyIndexCount = 0;
+		swapchainCreateInfo.pQueueFamilyIndices = nil;
+	} else {
+		u32 queueFamilyIndices [] =  {
+			graphicsQueueFamilyIndex,
+			presentQueueFamilyIndex,
+		};
+		swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		swapchainCreateInfo.queueFamilyIndexCount = 0;
+		swapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
+	}
+
+	swapchainCreateInfo.preTransform = surfaceCapabilities.currentTransform;
+	swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	swapchainCreateInfo.presentMode = desiredPresentMode;
+	swapchainCreateInfo.clipped = VK_TRUE;
+	swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
+
+	VkSwapchainKHR swapchain;
+	if (vkCreateSwapchainKHR(device, &swapchainCreateInfo, nil, &swapchain) != VK_SUCCESS) {
+		printf("unable to create swapchain!\n");
+		return 1;
+	}
+
+	u32 swapchainImagesCount = 0;
+	vkGetSwapchainImagesKHR(device, swapchain, &swapchainImagesCount, nil);
+	VkImage * swapchainImages = (VkImage *) _malloca(swapchainImagesCount, sizeof(VkImage));
+	vkGetSwapchainImagesKHR(device, swapchain, &swapchainImagesCount, nil);
 
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
