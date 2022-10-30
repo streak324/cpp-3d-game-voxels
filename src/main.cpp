@@ -37,6 +37,36 @@ inline void assert(u8 b) {
 	#endif
 }
 
+VkResult createShaderFromFile(VkDevice device , const char * shaderFilePath, VkShaderModule * shaderModule) {
+	FILE * shaderFile;
+	//TODO: fopen_s won't work with gcc
+	if (fopen_s(&shaderFile, shaderFilePath, "rb") != 0 ) {
+		if (shaderFile == nil) {
+			printf("Error opening file: %s\n", shaderFilePath);
+			return VK_ERROR_UNKNOWN;
+		}
+	}
+
+	fseek(shaderFile, 0i64, SEEK_END);
+	i64 shaderFileSize = ftell(shaderFile);
+	rewind(shaderFile);
+	u8 * shaderData = (u8 *) _malloca(shaderFileSize * sizeof(u8));
+
+	i64 bytesRead = fread(shaderData, sizeof(u8), shaderFileSize, shaderFile);
+	fclose(shaderFile);
+
+	if (bytesRead != shaderFileSize) {
+		printf("Error reading from file %s: read %dll bytes. expected %dll\n", shaderFilePath, bytesRead, shaderFileSize);
+		return VK_ERROR_UNKNOWN;
+	}
+
+	VkShaderModuleCreateInfo shaderModuleCreateInfo = {};
+	shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	shaderModuleCreateInfo.codeSize =  shaderFileSize;
+	shaderModuleCreateInfo.pCode = (const u32*) shaderData;
+	return vkCreateShaderModule(device, &shaderModuleCreateInfo, nil, shaderModule);
+}
+
 int main(void) {
 	#ifndef NDEBUG
 		printf("IN DEBUG MODE\n");
@@ -431,7 +461,7 @@ int main(void) {
 
 	u32 swapchainImagesCount = 0;
 	vkGetSwapchainImagesKHR(device, swapchain, &swapchainImagesCount, nil);
-	VkImage * swapchainImages = (VkImage *) _malloca(swapchainImagesCount, sizeof(VkImage));
+	VkImage * swapchainImages = (VkImage *) _malloca(swapchainImagesCount * sizeof(VkImage));
 	vkGetSwapchainImagesKHR(device, swapchain, &swapchainImagesCount, swapchainImages);
 
 	VkImageView * swapchainImageViews = (VkImageView *) _malloca(swapchainImagesCount * sizeof(VkImageView));
@@ -454,6 +484,37 @@ int main(void) {
 
 		vkCreateImageView(device, &createInfo, nil, &swapchainImageViews[i]);
 	}
+
+	const char * vertexShaderFilePath = "./spir-v/triangle.vert.spv";
+	VkShaderModule vertexShaderModule;
+	if(createShaderFromFile(device , vertexShaderFilePath, &vertexShaderModule) != VK_SUCCESS) {
+		printf("unable to create vertex shader module!\n");
+		return 1;
+	}
+
+	const char * fragmentShaderFilePath = "./spir-v/triangle.frag.spv";
+	VkShaderModule fragmentShaderModule;
+	if(createShaderFromFile(device , fragmentShaderFilePath, &fragmentShaderModule) != VK_SUCCESS) {
+		printf("unable to create fragment shader module!\n");
+		return 1;
+	}
+
+	VkPipelineShaderStageCreateInfo vertexShaderStageCreateInfo = {};
+	vertexShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertexShaderStageCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertexShaderStageCreateInfo.module = vertexShaderModule;
+	vertexShaderStageCreateInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo fragmentShaderStageCreateInfo = {};
+	fragmentShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragmentShaderStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragmentShaderStageCreateInfo.module = fragmentShaderModule;
+	fragmentShaderStageCreateInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfos[] = {
+		vertexShaderStageCreateInfo,
+		fragmentShaderStageCreateInfo
+	};
 
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
