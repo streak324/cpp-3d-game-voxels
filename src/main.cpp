@@ -406,15 +406,15 @@ int main(void) {
 		}
 	}
 
-	VkExtent2D swapExtent = {};
+	VkExtent2D swapchainExtent = {};
 
 	if (surfaceCapabilities.currentExtent.width ==  UINT32_MAX) {
 		i32 width, height;
 		glfwGetFramebufferSize(window, &width, &height);
-		swapExtent.width = max(min((u32) width, surfaceCapabilities.maxImageExtent.width), surfaceCapabilities.minImageExtent.width);
-		swapExtent.height = max(min((u32) height, surfaceCapabilities.maxImageExtent.height), surfaceCapabilities.minImageExtent.height);
+		swapchainExtent.width = max(min((u32) width, surfaceCapabilities.maxImageExtent.width), surfaceCapabilities.minImageExtent.width);
+		swapchainExtent.height = max(min((u32) height, surfaceCapabilities.maxImageExtent.height), surfaceCapabilities.minImageExtent.height);
 	} else {
-		swapExtent = surfaceCapabilities.currentExtent;
+		swapchainExtent = surfaceCapabilities.currentExtent;
 	}
 
 	u32 imageCount = 3;
@@ -428,7 +428,7 @@ int main(void) {
 	swapchainCreateInfo.minImageCount = imageCount;
 	swapchainCreateInfo.imageFormat = desiredSurfaceFormat.format;
 	swapchainCreateInfo.imageColorSpace = desiredSurfaceFormat.colorSpace;
-	swapchainCreateInfo.imageExtent = swapExtent;
+	swapchainCreateInfo.imageExtent = swapchainExtent;
 	swapchainCreateInfo.imageArrayLayers = 1;
 	swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
@@ -515,6 +515,101 @@ int main(void) {
 		vertexShaderStageCreateInfo,
 		fragmentShaderStageCreateInfo
 	};
+
+	const u32 numDynamicStates = 2;
+	VkDynamicState dynamicStates [numDynamicStates] =  {
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR
+	};
+
+	VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
+	dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	dynamicStateCreateInfo.dynamicStateCount = 2;
+	dynamicStateCreateInfo.pDynamicStates = dynamicStates;
+
+	VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
+	vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInputStateCreateInfo.vertexBindingDescriptionCount = 0;
+	vertexInputStateCreateInfo.pVertexBindingDescriptions = nil;
+	vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 0;
+	vertexInputStateCreateInfo.pVertexAttributeDescriptions = nil;
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
+	inputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
+
+	VkViewport viewport = {};
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = (float) swapchainExtent.width;
+	viewport.height = (float) swapchainExtent.height;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	VkRect2D scissor = {};
+	scissor.offset = {0, 0};
+	scissor.extent = swapchainExtent;
+
+	VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
+	viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportStateCreateInfo.viewportCount = 1;
+	viewportStateCreateInfo.scissorCount = 1;
+
+	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {};
+	rasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizationStateCreateInfo.depthClampEnable = VK_FALSE;
+	rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;
+	rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
+	rasterizationStateCreateInfo.lineWidth = 1.0f;
+	rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizationStateCreateInfo.depthBiasEnable = false;
+	rasterizationStateCreateInfo.depthBiasConstantFactor = 0.0f;
+	rasterizationStateCreateInfo.depthBiasClamp = 0.0f;
+	rasterizationStateCreateInfo.depthBiasSlopeFactor = 0.0f;
+
+	VkPipelineMultisampleStateCreateInfo multisamplingStateCreateInfo = {};
+	multisamplingStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisamplingStateCreateInfo.sampleShadingEnable = VK_FALSE;
+	multisamplingStateCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisamplingStateCreateInfo.minSampleShading = 1.0f;
+	multisamplingStateCreateInfo.pSampleMask = nil;
+	multisamplingStateCreateInfo.alphaToCoverageEnable = VK_FALSE;
+	multisamplingStateCreateInfo.alphaToOneEnable = VK_FALSE;
+
+	VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	colorBlendAttachment.blendEnable = VK_TRUE;
+	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+	VkPipelineColorBlendStateCreateInfo colorBlendingState = {};
+	colorBlendingState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlendingState.logicOpEnable = VK_FALSE;
+	colorBlendingState.logicOp = VK_LOGIC_OP_COPY;
+	colorBlendingState.attachmentCount = 1;
+	colorBlendingState.pAttachments = &colorBlendAttachment;
+	colorBlendingState.blendConstants[0];
+	colorBlendingState.blendConstants[1];
+	colorBlendingState.blendConstants[2];
+	colorBlendingState.blendConstants[3];
+
+	VkPipelineLayout pipelineLayout;
+
+	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
+	//TODO: empty pipeline layout. use push constants in here for the view projection matrix
+	pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+
+	if (vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nil, &pipelineLayout) != VK_SUCCESS) {
+		printf("unable to create pipeline layout!\n");
+		return 1;
+	}
+
 
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
