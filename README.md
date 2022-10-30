@@ -4,3 +4,6 @@
 	- download windows binaries zip, and unzip into `C:\GLFW`
 - [Vulkan SDK](https://vulkan.lunarg.com/) 1.3.231.1
 	- install in `C:\VulkanSDK`
+
+## compiling shaders
+ - `make-shaders.bat`

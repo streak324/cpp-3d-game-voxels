@@ -389,6 +389,8 @@ int main(void) {
 		return 1;
 	}
 
+	VkFormat swapchainImageFormat = desiredSurfaceFormat.format;
+
 	u32 presentModesCount = 0;
 	vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModesCount, nil);
 	if (!presentModesCount) {
@@ -471,7 +473,7 @@ int main(void) {
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		createInfo.image = swapchainImages[i];
 		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		createInfo.format = desiredSurfaceFormat.format;
+		createInfo.format = swapchainImageFormat;
 		createInfo.components.r = VK_COMPONENT_SWIZZLE_A;
 		createInfo.components.g = VK_COMPONENT_SWIZZLE_A;
 		createInfo.components.b = VK_COMPONENT_SWIZZLE_A;
@@ -483,6 +485,39 @@ int main(void) {
 		createInfo.subresourceRange.layerCount = 1;
 
 		vkCreateImageView(device, &createInfo, nil, &swapchainImageViews[i]);
+	}
+
+
+	VkAttachmentDescription colorAttachment = {};
+	colorAttachment.format = swapchainImageFormat;
+	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	VkAttachmentReference colorAttachmentReference = {};
+	colorAttachmentReference.attachment = 0;
+	colorAttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass = {};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &colorAttachmentReference;
+
+	VkRenderPass renderPass;
+	VkRenderPassCreateInfo renderPassCreateInfo = {};
+	renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	renderPassCreateInfo.attachmentCount = 1;
+	renderPassCreateInfo.pAttachments = &colorAttachment;
+	renderPassCreateInfo.subpassCount = 1;
+	renderPassCreateInfo.pSubpasses = &subpass;
+
+	if (vkCreateRenderPass(device, &renderPassCreateInfo, nil, &renderPass) != VK_SUCCESS) {
+		printf("unable to create render pass!\n");
+		return 1;
 	}
 
 	const char * vertexShaderFilePath = "./spir-v/triangle.vert.spv";
@@ -609,7 +644,6 @@ int main(void) {
 		printf("unable to create pipeline layout!\n");
 		return 1;
 	}
-
 
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
