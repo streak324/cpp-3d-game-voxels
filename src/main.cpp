@@ -107,17 +107,17 @@ int main(void) {
 		const u8 enableValidationLayers = 1;
 	#endif
 
-	VkInstanceCreateInfo createInfo = {};
-	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	createInfo.pApplicationInfo = &appInfo;
+	VkInstanceCreateInfo instanceCreateInfo = {};
+	instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instanceCreateInfo.pApplicationInfo = &appInfo;
 
 	//macos thing
-	//createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-	createInfo.flags = 0;
+	//instanceCreateInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+	instanceCreateInfo.flags = 0;
 
-	createInfo.enabledExtensionCount = extensionCount;
-	createInfo.ppEnabledExtensionNames = extensionNames;
-	createInfo.enabledLayerCount = 0;
+	instanceCreateInfo.enabledExtensionCount = extensionCount;
+	instanceCreateInfo.ppEnabledExtensionNames = extensionNames;
+	instanceCreateInfo.enabledLayerCount = 0;
 
 	if (enableValidationLayers) {
 		u32 layerCount;
@@ -132,13 +132,13 @@ int main(void) {
 				}
 			}
 		}
-		createInfo.enabledLayerCount = validationLayerCount;
-		createInfo.ppEnabledLayerNames = validationLayers;
+		instanceCreateInfo.enabledLayerCount = validationLayerCount;
+		instanceCreateInfo.ppEnabledLayerNames = validationLayers;
 	}
 
 	VkInstance instance;
 
-	if(vkCreateInstance(&createInfo, nil, &instance) != VK_SUCCESS) {
+	if(vkCreateInstance(&instanceCreateInfo, nil, &instance) != VK_SUCCESS) {
 		fprintf(stderr, "failed to create instance!\n");
 		return 1;
 	}
@@ -187,12 +187,14 @@ int main(void) {
 
 	u32	queueFamilyCount = 0;
 	u8 foundGraphicsQueueFamily = 0;
+	u32 graphicsQueueFamilyIndex = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nil);
 	VkQueueFamilyProperties * queueFamilyProperties = (VkQueueFamilyProperties *) _malloca(queueFamilyCount * sizeof(VkQueueFamilyProperties));
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilyProperties);
 	for (u32 i = 0; i < queueFamilyCount; i++) {
 		if (queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
 			printf("queue family %d supports graphics operations\n", i);
+			graphicsQueueFamilyIndex = i;
 			foundGraphicsQueueFamily = 1;
 		}
 	}
@@ -201,6 +203,35 @@ int main(void) {
 		printf("device doesn't support graphics operations!!!\n");
 		return 1;
 	}
+
+	VkDeviceQueueCreateInfo queueCreateInfo = {};
+	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueCreateInfo.queueFamilyIndex = graphicsQueueFamilyIndex;
+	queueCreateInfo.queueCount = 1;
+	f32 queuePriority = 1.0f;
+	queueCreateInfo.pQueuePriorities = &queuePriority;
+
+	VkDeviceCreateInfo deviceCreateInfo = {};
+	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+	deviceCreateInfo.queueCreateInfoCount = 1;
+	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
+	deviceCreateInfo.enabledExtensionCount = 0;
+	deviceCreateInfo.enabledLayerCount = 0;
+
+	if (enableValidationLayers) {
+		deviceCreateInfo.enabledLayerCount = validationLayerCount;
+		deviceCreateInfo.ppEnabledLayerNames = validationLayers;
+	}
+
+	VkDevice device;
+	if (vkCreateDevice(physicalDevice, &deviceCreateInfo, nil, &device) != VK_SUCCESS) {
+		printf("unable to create logical device!");
+		return 1;
+	}
+
+	VkQueue graphicsQueue;
+	vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &graphicsQueue);
 
 	/* Create a windowed mode window and its OpenGL context */
 	GLFWwindow* window = glfwCreateWindow(1280, 720, "CPP Voxels!!", nil, nil);
