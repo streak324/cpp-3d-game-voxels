@@ -5,8 +5,11 @@
 #include <malloc.h>
 #include <string.h>
 
+#define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 
 typedef int8_t i8;
 typedef int16_t i16;
@@ -45,6 +48,13 @@ int main(void) {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
+	GLFWwindow* window = glfwCreateWindow(1280, 720, "CPP Voxels!!", nil, nil);
+	if (!window) {
+		glfwTerminate();
+		printf("unable to create the window\n");
+		return 1;
+	}
+
 	VkApplicationInfo appInfo = {};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	appInfo.pApplicationName = "Hello Triangle";
@@ -63,7 +73,7 @@ int main(void) {
 		//VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
 	};
 	assert(glfwExtensionCount + requiredExtensionCount < requiredExtensionCapacity);
-	for (i32 i=0; i < glfwExtensionCount; i++) {
+	for (u32 i=0; i < glfwExtensionCount; i++) {
 		requiredExtensions[i+requiredExtensionCount] = glfwExtensions[i];
 	}
 	requiredExtensionCount += glfwExtensionCount;
@@ -75,16 +85,16 @@ int main(void) {
 	const char* *extensionNames = (const char**) _malloca(extensionCount * sizeof(char*));
 	vkEnumerateInstanceExtensionProperties(nil, &extensionCount, extensions);
 
-	for (i32 i=0; i < extensionCount; i++) {
+	for (u32 i=0; i < extensionCount; i++) {
 		printf("extension: %s\n", extensions[i].extensionName);
 		extensionNames[i] = extensions[i].extensionName;
 	}
 
 
-	for (i32 i=0; i < requiredExtensionCount; i++) {
+	for (u32 i=0; i < requiredExtensionCount; i++) {
 		printf("required extension %s\n", requiredExtensions[i]);
 		u8 found = 0;
-		for (i32 j=0; j < extensionCount; j++) {
+		for (u32 j=0; j < extensionCount; j++) {
 			if (strcmp(requiredExtensions[i], extensionNames[j]) == 0) {
 				found = 1;
 				break;
@@ -111,7 +121,7 @@ int main(void) {
 	instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	instanceCreateInfo.pApplicationInfo = &appInfo;
 
-	//macos thing
+	//mac os thing
 	//instanceCreateInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 	instanceCreateInfo.flags = 0;
 
@@ -123,9 +133,9 @@ int main(void) {
 		u32 layerCount;
 		vkEnumerateInstanceLayerProperties(&layerCount, nil);
 		VkLayerProperties * availableLayers = (VkLayerProperties *) _malloca(layerCount * sizeof(VkLayerProperties));
-		for (i32 i = 0; i < validationLayerCount; i++) {
+		for (u32 i = 0; i < validationLayerCount; i++) {
 			u8 found = 0;
-			for (i32 j = 0; j < layerCount; j++) {
+			for (u32 j = 0; j < layerCount; j++) {
 				if (strcmp(validationLayers[i], availableLayers[j].layerName) == 0) {
 					printf("validation layer %s is not supported", validationLayers[i]);
 					return 1;
@@ -140,6 +150,16 @@ int main(void) {
 
 	if(vkCreateInstance(&instanceCreateInfo, nil, &instance) != VK_SUCCESS) {
 		fprintf(stderr, "failed to create instance!\n");
+		return 1;
+	}
+
+	VkSurfaceKHR surface;
+	VkWin32SurfaceCreateInfoKHR win32SurfaceCreateInfo = {};
+	win32SurfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+	win32SurfaceCreateInfo.hwnd = glfwGetWin32Window(window);
+	win32SurfaceCreateInfo.hinstance = GetModuleHandle(nil);
+	if (vkCreateWin32SurfaceKHR(instance, &win32SurfaceCreateInfo, nil, &surface) != VK_SUCCESS) {
+		printf("failed to create win32 surface!");
 		return 1;
 	}
 
@@ -181,21 +201,36 @@ int main(void) {
 		return 1;
 	}
 
-	//TODO: check device features and device suitability
 	VkPhysicalDeviceFeatures deviceFeatures;
 	vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
 	u32	queueFamilyCount = 0;
+
 	u8 foundGraphicsQueueFamily = 0;
 	u32 graphicsQueueFamilyIndex = 0;
+
+	u8 foundPresentQueueFamily = 0;
+	u32 presentQueueFamilyIndex = 0;
+
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nil);
 	VkQueueFamilyProperties * queueFamilyProperties = (VkQueueFamilyProperties *) _malloca(queueFamilyCount * sizeof(VkQueueFamilyProperties));
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilyProperties);
+	printf("%d queue families\n", queueFamilyCount);
 	for (u32 i = 0; i < queueFamilyCount; i++) {
 		if (queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
 			printf("queue family %d supports graphics operations\n", i);
 			graphicsQueueFamilyIndex = i;
 			foundGraphicsQueueFamily = 1;
+		}
+
+		VkBool32 presentSupport;
+		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
+		if (presentSupport) {
+			printf("queue family %d supports presentation operations\n", i);
+			if (!foundPresentQueueFamily || (foundGraphicsQueueFamily && graphicsQueueFamilyIndex != presentQueueFamilyIndex)) {
+				presentQueueFamilyIndex = i;
+				foundPresentQueueFamily = 1;
+			}
 		}
 	}
 
@@ -204,17 +239,46 @@ int main(void) {
 		return 1;
 	}
 
-	VkDeviceQueueCreateInfo queueCreateInfo = {};
-	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfo.queueFamilyIndex = graphicsQueueFamilyIndex;
-	queueCreateInfo.queueCount = 1;
-	f32 queuePriority = 1.0f;
-	queueCreateInfo.pQueuePriorities = &queuePriority;
+	if (!foundPresentQueueFamily) {
+		printf("device doesn't support present operations!!!\n");
+		return 1;
+	}
+
+
+	u8 isUsingSameQueueForGraphicsAndPresent = graphicsQueueFamilyIndex == presentQueueFamilyIndex;
+
+	VkDeviceQueueCreateInfo queueCreateInfos [2] = {};
+
+	u32 queueCreateInfoCount = 1;
+	{
+		VkDeviceQueueCreateInfo queueCreateInfo = {};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.queueFamilyIndex = graphicsQueueFamilyIndex;
+		queueCreateInfo.queueCount = 1;
+		f32 queuePriority = 1.0f;
+		queueCreateInfo.pQueuePriorities = &queuePriority;
+
+		queueCreateInfos[0] = queueCreateInfo;
+	}
+
+	if (isUsingSameQueueForGraphicsAndPresent) {
+		printf("queue family %d supports both graphics and presentation!\n", graphicsQueueFamilyIndex);
+	} else {
+		VkDeviceQueueCreateInfo queueCreateInfo = {};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.queueFamilyIndex = presentQueueFamilyIndex;
+		queueCreateInfo.queueCount = 1;
+		f32 queuePriority = 1.0f;
+		queueCreateInfo.pQueuePriorities = &queuePriority;
+
+		queueCreateInfos[1] = queueCreateInfo;
+		queueCreateInfoCount = 2;
+	}
 
 	VkDeviceCreateInfo deviceCreateInfo = {};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
-	deviceCreateInfo.queueCreateInfoCount = 1;
+	deviceCreateInfo.pQueueCreateInfos = queueCreateInfos;
+	deviceCreateInfo.queueCreateInfoCount = queueCreateInfoCount;
 	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
 	deviceCreateInfo.enabledExtensionCount = 0;
 	deviceCreateInfo.enabledLayerCount = 0;
@@ -231,15 +295,16 @@ int main(void) {
 	}
 
 	VkQueue graphicsQueue;
+	VkQueue presentQueue;
+
 	vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &graphicsQueue);
 
-	/* Create a windowed mode window and its OpenGL context */
-	GLFWwindow* window = glfwCreateWindow(1280, 720, "CPP Voxels!!", nil, nil);
-	if (!window) {
-		glfwTerminate();
-		printf("unable to create the window\n");
-		return 1;
+	if (graphicsQueueFamilyIndex == presentQueueFamilyIndex) {
+		presentQueue = graphicsQueue;
+	} else {
+		vkGetDeviceQueue(device, presentQueueFamilyIndex, 0, &presentQueue);
 	}
+
 
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
