@@ -474,9 +474,9 @@ int main(void) {
 		createInfo.image = swapchainImages[i];
 		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		createInfo.format = swapchainImageFormat;
-		createInfo.components.r = VK_COMPONENT_SWIZZLE_A;
-		createInfo.components.g = VK_COMPONENT_SWIZZLE_A;
-		createInfo.components.b = VK_COMPONENT_SWIZZLE_A;
+		createInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+		createInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+		createInfo.components.b = VK_COMPONENT_SWIZZLE_B;
 		createInfo.components.a = VK_COMPONENT_SWIZZLE_A;
 		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		createInfo.subresourceRange.baseMipLevel = 0;
@@ -668,6 +668,28 @@ int main(void) {
 	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nil, &graphicsPipeline) != VK_SUCCESS) {
 		printf("unable to create graphics pipeline!\n");
 		return 1;
+	}
+
+	VkFramebuffer * framebuffers = (VkFramebuffer *) _malloca(swapchainImagesCount * sizeof(VkFramebuffer));
+
+	for (u32 i =0; i < swapchainImagesCount; i++) {
+		VkImageView attachments[] = {
+			swapchainImageViews[i]
+		};
+
+		VkFramebufferCreateInfo framebufferCreateInfo = {};
+		framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebufferCreateInfo.renderPass = renderPass;
+		framebufferCreateInfo.attachmentCount = 1;
+		framebufferCreateInfo.pAttachments = attachments;
+		framebufferCreateInfo.width = swapchainExtent.width;
+		framebufferCreateInfo.height = swapchainExtent.height;
+		framebufferCreateInfo.layers = 1;
+
+		if (vkCreateFramebuffer(device, &framebufferCreateInfo, nil, &framebuffers[i]) != VK_SUCCESS) {
+			printf("unable to create framebuffer for index %d\n", i);
+			return 1;
+		}
 	}
 
 	/* Make the window's context current */
