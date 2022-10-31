@@ -39,6 +39,12 @@ inline void assert(u8 b) {
 	#endif
 }
 
+bool framebufferResized = false;
+
+void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+	framebufferResized = true;
+}
+
 VkResult createShaderFromFile(VkDevice device , const char * shaderFilePath, VkShaderModule * shaderModule) {
 	FILE * shaderFile;
 	//TODO: fopen_s won't work with gcc
@@ -92,6 +98,7 @@ VkResult createSwapchainAndRenderPass(
 	Swapchain *swapchain
 ) {
 	vkDeviceWaitIdle(device);
+	framebufferResized = false;
 
 	if (swapchain == nil) {
 		printf("swapchain is null\n");
@@ -159,6 +166,10 @@ VkResult createSwapchainAndRenderPass(
 	if (surfaceCapabilities.currentExtent.width ==  UINT32_MAX) {
 		i32 width, height;
 		glfwGetFramebufferSize(window, &width, &height);
+		while (width == 0 || height == 0) {
+			glfwGetFramebufferSize(window, &width, &height);
+			glfwWaitEvents();
+		}
 		swapchain->extent.width = max(min((u32) width, surfaceCapabilities.maxImageExtent.width), surfaceCapabilities.minImageExtent.width);
 		swapchain->extent.height = max(min((u32) height, surfaceCapabilities.maxImageExtent.height), surfaceCapabilities.minImageExtent.height);
 	} else {
@@ -309,6 +320,7 @@ int main(void) {
 		printf("unable to create the window\n");
 		return 1;
 	}
+	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 
 	VkApplicationInfo appInfo = {};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -806,6 +818,7 @@ int main(void) {
 		/* Poll for and process events */
 		glfwPollEvents();
 
+
 		vkWaitForFences(device, 1, &inFlightFences[frameCounter], VK_TRUE, UINT64_MAX);
 		u32 imageIndex;
 		VkResult result = vkAcquireNextImageKHR(device, swapchain.handle, UINT64_MAX, imageAvailableSemaphores[frameCounter], VK_NULL_HANDLE, &imageIndex);
@@ -906,7 +919,7 @@ int main(void) {
 		presentInfo.pResults = nil;
 
 		result = vkQueuePresentKHR(presentQueue, &presentInfo);
-		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
 			result = createSwapchainAndRenderPass(
 				window,
 				physicalDevice,
