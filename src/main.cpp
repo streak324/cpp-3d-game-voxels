@@ -67,6 +67,8 @@ VkResult createShaderFromFile(VkDevice device , const char * shaderFilePath, VkS
 	return vkCreateShaderModule(device, &shaderModuleCreateInfo, nil, shaderModule);
 }
 
+const u32 MAX_FRAMES_IN_FLIGHT = 2;
+
 int main(void) {
 	#ifndef NDEBUG
 		printf("IN DEBUG MODE\n");
@@ -702,13 +704,13 @@ int main(void) {
 		return 1;
 	}
 
-	VkCommandBuffer commandBuffer;
+	VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT] = {};
 	VkCommandBufferAllocateInfo commandBufferAllocInfo = {};
 	commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	commandBufferAllocInfo.commandPool = commandPool;
 	commandBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	commandBufferAllocInfo.commandBufferCount = 1;
-	if (vkAllocateCommandBuffers(device, &commandBufferAllocInfo, &commandBuffer) != VK_SUCCESS) {
+	commandBufferAllocInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
+	if (vkAllocateCommandBuffers(device, &commandBufferAllocInfo, commandBuffers) != VK_SUCCESS) {
 		printf("unable to allocate command buffers\n");
 		return 1;
 	}
@@ -716,9 +718,9 @@ int main(void) {
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
 
-	VkSemaphore imageAvailableSemaphore;
-	VkSemaphore renderFinishedSemaphore;
-	VkFence inFlightFence;
+	VkSemaphore imageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT] = {};
+	VkSemaphore renderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT] = {};
+	VkFence inFlightFences[MAX_FRAMES_IN_FLIGHT] = {};
 
 	VkSemaphoreCreateInfo semaphoreInfo = {};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -727,34 +729,38 @@ int main(void) {
 	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	if (
-		vkCreateSemaphore(device, &semaphoreInfo, nil, &imageAvailableSemaphore) != VK_SUCCESS ||
-		vkCreateSemaphore(device, &semaphoreInfo, nil, &renderFinishedSemaphore) != VK_SUCCESS ||
-		vkCreateFence(device, &fenceInfo, nil, &inFlightFence) != VK_SUCCESS)
-	{
-		printf("unable to create semaphore and fences!\n");
-		return 1;
+	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		if (
+			vkCreateSemaphore(device, &semaphoreInfo, nil, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+			vkCreateSemaphore(device, &semaphoreInfo, nil, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
+			vkCreateFence(device, &fenceInfo, nil, &inFlightFences[i]) != VK_SUCCESS)
+		{
+			printf("unable to create semaphore and fences!\n");
+			return 1;
+		}
 	}
 
+	u64 frameCounter = -1;
 
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
+		frameCounter = (frameCounter + 1) % MAX_FRAMES_IN_FLIGHT;
 		/* Poll for and process events */
 		glfwPollEvents();
 
-		vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
-		vkResetFences(device, 1, &inFlightFence);
+		vkWaitForFences(device, 1, &inFlightFences[frameCounter], VK_TRUE, UINT64_MAX);
+		vkResetFences(device, 1, &inFlightFences[frameCounter]);
 		u32 imageIndex;
-		vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+		vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphores[frameCounter], VK_NULL_HANDLE, &imageIndex);
 
-		vkResetCommandBuffer(commandBuffer, 0);
+		vkResetCommandBuffer(commandBuffers[frameCounter], 0);
 
 		VkCommandBufferBeginInfo commandBufferBeginInfo = {};
 		commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		commandBufferBeginInfo.flags = 0;
 		commandBufferBeginInfo.pInheritanceInfo = nil;
 
-		if (vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo) != VK_SUCCESS) {
+		if (vkBeginCommandBuffer(commandBuffers[frameCounter], &commandBufferBeginInfo) != VK_SUCCESS) {
 			printf("unable to begin the command buffer!\n");
 			return 1;
 		}
@@ -769,9 +775,9 @@ int main(void) {
 		renderPassBeginInfo.clearValueCount = 1;
 		renderPassBeginInfo.pClearValues = &clearColor;
 
-		vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBeginRenderPass(commandBuffers[frameCounter], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+		vkCmdBindPipeline(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
 		VkViewport viewport = {};
 		viewport.x = 0.0f;
@@ -780,18 +786,18 @@ int main(void) {
 		viewport.height = (float) swapchainExtent.height;
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
-		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetViewport(commandBuffers[frameCounter], 0, 1, &viewport);
 
 		VkRect2D scissor = {};
 		scissor.offset = {0, 0};
 		scissor.extent = swapchainExtent;
-		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+		vkCmdSetScissor(commandBuffers[frameCounter], 0, 1, &scissor);
 
-		vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+		vkCmdDraw(commandBuffers[frameCounter], 3, 1, 0, 0);
 
-		vkCmdEndRenderPass(commandBuffer);
+		vkCmdEndRenderPass(commandBuffers[frameCounter]);
 
-		if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+		if (vkEndCommandBuffer(commandBuffers[frameCounter]) != VK_SUCCESS) {
 			printf("unable to record command buffer!\n");
 			return 1;
 		}
@@ -800,14 +806,14 @@ int main(void) {
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = &imageAvailableSemaphore;
+		submitInfo.pWaitSemaphores = &imageAvailableSemaphores[frameCounter];
 		submitInfo.pWaitDstStageMask = waitStages;
 		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &commandBuffer;
+		submitInfo.pCommandBuffers = &commandBuffers[frameCounter];
 		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = &renderFinishedSemaphore;
+		submitInfo.pSignalSemaphores = &renderFinishedSemaphores[frameCounter];
 
-		if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence) != VK_SUCCESS) {
+		if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[frameCounter]) != VK_SUCCESS) {
 			printf("unable to submit to queue!\n");
 			return 1;
 		}
@@ -815,7 +821,7 @@ int main(void) {
 		VkPresentInfoKHR presentInfo = {};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 		presentInfo.waitSemaphoreCount = 1;
-		presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
+		presentInfo.pWaitSemaphores = &renderFinishedSemaphores[frameCounter];
 		presentInfo.swapchainCount = 1;
 		presentInfo.pSwapchains = &swapchain;
 		presentInfo.pImageIndices = &imageIndex;
