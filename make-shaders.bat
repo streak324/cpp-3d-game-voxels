@@ -1,3 +1,7 @@
-glslc src/shaders/triangle.frag -o spir-v/triangle.frag.spv
-glslc src/shaders/triangle.vert -o spir-v/triangle.vert.spv
+@echo off
+for /f "delims=" %%a in ('dir /s /b ".\src\shaders\*"') do (
+	echo glslc %%a -o .\spir-v\%%~nxa.spv
+	glslc %%a -o .\spir-v\%%~nxa.spv
+)
+
 pause

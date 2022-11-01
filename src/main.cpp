@@ -45,6 +45,11 @@ void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 	framebufferResized = true;
 }
 
+struct PositionColorVertex {
+	f32 x, y, z;
+	f32 r, g, b, a;
+};
+
 VkResult createShaderFromFile(VkDevice device , const char * shaderFilePath, VkShaderModule * shaderModule) {
 	FILE * shaderFile;
 	//TODO: fopen_s won't work with gcc
@@ -106,16 +111,16 @@ VkResult createSwapchainAndRenderPass(
 	}
 
 	if (swapchain->handle != VK_NULL_HANDLE) {
-		//TODO: renderpass may have to be recreated when moving window from one monitor to another
 		for (u32 i = 0; i < swapchain->imageCount; i++) {
 			vkDestroyFramebuffer(device, swapchain->framebuffers[i], nil);
 			vkDestroyImageView(device, swapchain->imageViews[i], nil);
 		}
 		vkDestroySwapchainKHR(device, swapchain->handle, nil);
 
-		//free(swapchain->framebuffers);
-		//free(swapchain->imageViews);
-		//free(swapchain->images);
+		free(swapchain->framebuffers);
+		free(swapchain->imageViews);
+		free(swapchain->images);
+		swapchain->handle = VK_NULL_HANDLE;
 	}
 
 	VkSurfaceCapabilitiesKHR surfaceCapabilities;
@@ -622,17 +627,14 @@ int main(void) {
 		return 1;	
 	}
 
-
-
-
-	const char * vertexShaderFilePath = "./spir-v/triangle.vert.spv";
+	const char * vertexShaderFilePath = "./spir-v/simple-input-position-color.vert.spv";
 	VkShaderModule vertexShaderModule;
 	if(createShaderFromFile(device , vertexShaderFilePath, &vertexShaderModule) != VK_SUCCESS) {
 		printf("unable to create vertex shader module!\n");
 		return 1;
 	}
 
-	const char * fragmentShaderFilePath = "./spir-v/triangle.frag.spv";
+	const char * fragmentShaderFilePath = "./spir-v/simple-input-color.frag.spv";
 	VkShaderModule fragmentShaderModule;
 	if(createShaderFromFile(device , fragmentShaderFilePath, &fragmentShaderModule) != VK_SUCCESS) {
 		printf("unable to create fragment shader module!\n");
@@ -667,12 +669,29 @@ int main(void) {
 	dynamicStateCreateInfo.dynamicStateCount = 2;
 	dynamicStateCreateInfo.pDynamicStates = dynamicStates;
 
+	VkVertexInputBindingDescription bindingDescription = {};
+	bindingDescription.binding = 0;
+	bindingDescription.stride = sizeof(PositionColorVertex);
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	VkVertexInputAttributeDescription positionColorAttributeDescriptions[2] = {};
+	positionColorAttributeDescriptions[0].binding = 0;
+	positionColorAttributeDescriptions[0].location = 0;
+	positionColorAttributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	positionColorAttributeDescriptions[0].offset = 0;
+	VkVertexInputAttributeDescription positionAttributeDescription = {};
+	positionColorAttributeDescriptions[1].binding = 0;
+	positionColorAttributeDescriptions[1].location = 1;
+	positionColorAttributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	positionColorAttributeDescriptions[1].offset = 12;
+
+
 	VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
 	vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputStateCreateInfo.vertexBindingDescriptionCount = 0;
-	vertexInputStateCreateInfo.pVertexBindingDescriptions = nil;
-	vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputStateCreateInfo.pVertexAttributeDescriptions = nil;
+	vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
+	vertexInputStateCreateInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 2;
+	vertexInputStateCreateInfo.pVertexAttributeDescriptions = positionColorAttributeDescriptions;
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
 	inputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -774,6 +793,57 @@ int main(void) {
 		return 1;
 	}
 
+	f32 vertices[] = {
+		0.0, -0.5, 0.0,	1.0, 1.0, 1.0, 1.0,
+		0.5, 0.5, 0.0, 0.0, 1.0, 0.0, 1.0,
+		-0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 1.0
+	};
+
+	VkBufferCreateInfo bufferInfo = {};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = sizeof(vertices);
+	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	VkBuffer vertexBuffer;
+	if (vkCreateBuffer(device, &bufferInfo, nil, &vertexBuffer) != VK_SUCCESS) {
+		printf("unable to create the vertex buffer!\n");
+		return 1;
+	}
+
+	VkMemoryRequirements memoryRequirements;
+	vkGetBufferMemoryRequirements(device, vertexBuffer, &memoryRequirements);
+
+	VkPhysicalDeviceMemoryProperties memoryProperties;
+	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+
+	VkMemoryPropertyFlags desiredMemoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	u32 memoryTypeIndex = 0;
+	for (u32 i = 0; i < memoryProperties.memoryTypeCount; i++) {
+		if ((memoryRequirements.memoryTypeBits & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & desiredMemoryPropertyFlags) == desiredMemoryPropertyFlags) {
+			memoryTypeIndex = i;
+			break;
+		}
+	}
+
+	VkMemoryAllocateInfo memoryAllocInfo = {};
+	memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memoryAllocInfo.allocationSize = memoryRequirements.size;
+	memoryAllocInfo.memoryTypeIndex = memoryTypeIndex;
+
+	VkDeviceMemory vertexBufferMemory;
+	if (vkAllocateMemory(device, &memoryAllocInfo, nil, &vertexBufferMemory) != VK_SUCCESS) {
+		printf("unable to allocate any memory!\n");
+		return 1;
+	}
+
+	vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+
+	void *data;
+	vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+	memcpy(data, vertices, sizeof(vertices));
+	vkUnmapMemory(device, vertexBufferMemory);
+
 	VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT] = {};
 	VkCommandBufferAllocateInfo commandBufferAllocInfo = {};
 	commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -811,7 +881,6 @@ int main(void) {
 	}
 
 	u64 frameCounter = -1;
-
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
 		frameCounter = (frameCounter + 1) % MAX_FRAMES_IN_FLIGHT;
@@ -884,6 +953,8 @@ int main(void) {
 		scissor.extent = swapchain.extent;
 		vkCmdSetScissor(commandBuffers[frameCounter], 0, 1, &scissor);
 
+		VkDeviceSize offsets[] = {0};
+		vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &vertexBuffer, offsets);
 		vkCmdDraw(commandBuffers[frameCounter], 3, 1, 0, 0);
 
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
