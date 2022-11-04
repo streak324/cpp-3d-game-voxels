@@ -91,6 +91,58 @@ struct Swapchain {
 	VkExtent2D extent;
 };
 
+struct Buffer {
+	VkBuffer buffer;
+	VkDeviceMemory memory;
+	VkResult createResult;
+	VkDeviceSize size;
+};
+
+Buffer createBuffer(VkPhysicalDevice physicalDevice, VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags) {
+	Buffer buffer;
+	buffer.size = size;
+	VkBufferCreateInfo bufferInfo = {};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = size;
+	bufferInfo.usage = usage;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	buffer.createResult = vkCreateBuffer(device, &bufferInfo, nil, &buffer.buffer);
+	if (buffer.createResult != VK_SUCCESS) {
+		printf("unable to create the buffer!\n");
+		return buffer;
+	}
+
+	VkMemoryRequirements memoryRequirements;
+	vkGetBufferMemoryRequirements(device, buffer.buffer, &memoryRequirements);
+
+	VkPhysicalDeviceMemoryProperties memoryProperties;
+	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+
+	VkMemoryPropertyFlags desiredMemoryPropertyFlags = memoryPropertyFlags;
+	u32 memoryTypeIndex = 0;
+	for (u32 i = 0; i < memoryProperties.memoryTypeCount; i++) {
+		if ((memoryRequirements.memoryTypeBits & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & desiredMemoryPropertyFlags) == desiredMemoryPropertyFlags) {
+			memoryTypeIndex = i;
+			break;
+		}
+	}
+
+	VkMemoryAllocateInfo memoryAllocInfo = {};
+	memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memoryAllocInfo.allocationSize = memoryRequirements.size;
+	memoryAllocInfo.memoryTypeIndex = memoryTypeIndex;
+
+	buffer.createResult = vkAllocateMemory(device, &memoryAllocInfo, nil, &buffer.memory);
+	if (buffer.createResult != VK_SUCCESS) {
+		printf("unable to allocate any memory!\n");
+		return buffer;
+	}
+
+	vkBindBufferMemory(device, buffer.buffer, buffer.memory, 0);
+	return buffer;
+}
+
 VkResult createSwapchainAndRenderPass(
 	GLFWwindow *window,
 	VkPhysicalDevice physicalDevice,
@@ -478,10 +530,10 @@ int main(void) {
 
 	u32	queueFamilyCount = 0;
 
-	u8 foundGraphicsQueueFamily = 0;
+	bool foundGraphicsQueueFamily = false;
 	u32 graphicsQueueFamilyIndex = 0;
 
-	u8 foundPresentQueueFamily = 0;
+	bool foundPresentQueueFamily = 0;
 	u32 presentQueueFamilyIndex = 0;
 
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nil);
@@ -489,10 +541,10 @@ int main(void) {
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilyProperties);
 	printf("%d queue families\n", queueFamilyCount);
 	for (u32 i = 0; i < queueFamilyCount; i++) {
-		if (queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+		if (!foundGraphicsQueueFamily && queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
 			printf("queue family %d supports graphics operations\n", i);
 			graphicsQueueFamilyIndex = i;
-			foundGraphicsQueueFamily = 1;
+			foundGraphicsQueueFamily = true;
 		}
 
 		VkBool32 presentSupport;
@@ -501,7 +553,7 @@ int main(void) {
 			printf("queue family %d supports presentation operations\n", i);
 			if (!foundPresentQueueFamily || (foundGraphicsQueueFamily && graphicsQueueFamilyIndex != presentQueueFamilyIndex)) {
 				presentQueueFamilyIndex = i;
-				foundPresentQueueFamily = 1;
+				foundPresentQueueFamily = true;
 			}
 		}
 	}
@@ -516,10 +568,9 @@ int main(void) {
 		return 1;
 	}
 
-
 	u8 isUsingSameQueueForGraphicsAndPresent = graphicsQueueFamilyIndex == presentQueueFamilyIndex;
 
-	VkDeviceQueueCreateInfo queueCreateInfos [2] = {};
+	VkDeviceQueueCreateInfo queueCreateInfos [3] = {};
 
 	u32 queueCreateInfoCount = 1;
 	{
@@ -544,8 +595,10 @@ int main(void) {
 		queueCreateInfo.pQueuePriorities = &queuePriority;
 
 		queueCreateInfos[1] = queueCreateInfo;
-		queueCreateInfoCount = 2;
+		queueCreateInfoCount += 1;
 	}
+
+	//TODO: support separate transfer queues
 
 	u32 requiredDeviceExtensionsCount = 1;
 	const char * requiredDeviceExtensions [1] = {
@@ -799,50 +852,60 @@ int main(void) {
 		-0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 1.0
 	};
 
-	VkBufferCreateInfo bufferInfo = {};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.size = sizeof(vertices);
-	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	VkBuffer vertexBuffer;
-	if (vkCreateBuffer(device, &bufferInfo, nil, &vertexBuffer) != VK_SUCCESS) {
-		printf("unable to create the vertex buffer!\n");
+	Buffer stagingBuffer = createBuffer(physicalDevice, device, sizeof(vertices), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	if (stagingBuffer.createResult != VK_SUCCESS) {
+		printf("failed to create staging buffer!!!\n");
 		return 1;
 	}
 
-	VkMemoryRequirements memoryRequirements;
-	vkGetBufferMemoryRequirements(device, vertexBuffer, &memoryRequirements);
+	Buffer vertexBuffer = createBuffer(physicalDevice, device, sizeof(vertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	if (vertexBuffer.createResult != VK_SUCCESS) {
+		printf("failed to create vertex buffer!!!\n");
+		return 1;
+	}
 
-	VkPhysicalDeviceMemoryProperties memoryProperties;
-	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+	{
+		void *data;
+		vkMapMemory(device, stagingBuffer.memory, 0, stagingBuffer.size, 0, &data);
+		memcpy(data, vertices, sizeof(vertices));
+		vkUnmapMemory(device, stagingBuffer.memory);
+	}
 
-	VkMemoryPropertyFlags desiredMemoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	u32 memoryTypeIndex = 0;
-	for (u32 i = 0; i < memoryProperties.memoryTypeCount; i++) {
-		if ((memoryRequirements.memoryTypeBits & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & desiredMemoryPropertyFlags) == desiredMemoryPropertyFlags) {
-			memoryTypeIndex = i;
-			break;
+	{
+		VkCommandBufferAllocateInfo copyCmdBufferAllocInfo = {};
+		copyCmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		copyCmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		copyCmdBufferAllocInfo.commandPool = commandPool;
+		copyCmdBufferAllocInfo.commandBufferCount = 1;
+		VkCommandBuffer copyBufferCmdBuffer;
+		if (vkAllocateCommandBuffers(device, &copyCmdBufferAllocInfo, &copyBufferCmdBuffer) != VK_SUCCESS) {
+			printf("unable to allocate a copy buffer command buffer!!!\n");
+			return 1;
 		}
+
+		VkCommandBufferBeginInfo beginInfo = {};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+		vkBeginCommandBuffer(copyBufferCmdBuffer, &beginInfo);
+
+		VkBufferCopy copyRegion = {};
+		copyRegion.srcOffset = 0;
+		copyRegion.dstOffset = 0;
+		copyRegion.size = stagingBuffer.size;
+		vkCmdCopyBuffer(copyBufferCmdBuffer, stagingBuffer.buffer, vertexBuffer.buffer, 1, &copyRegion);
+		vkEndCommandBuffer(copyBufferCmdBuffer);
+
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &copyBufferCmdBuffer;
+
+		vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+		vkQueueWaitIdle(graphicsQueue);
+
+		vkFreeCommandBuffers(device, commandPool, 1, &copyBufferCmdBuffer);
 	}
 
-	VkMemoryAllocateInfo memoryAllocInfo = {};
-	memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memoryAllocInfo.allocationSize = memoryRequirements.size;
-	memoryAllocInfo.memoryTypeIndex = memoryTypeIndex;
-
-	VkDeviceMemory vertexBufferMemory;
-	if (vkAllocateMemory(device, &memoryAllocInfo, nil, &vertexBufferMemory) != VK_SUCCESS) {
-		printf("unable to allocate any memory!\n");
-		return 1;
-	}
-
-	vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
-
-	void *data;
-	vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-	memcpy(data, vertices, sizeof(vertices));
-	vkUnmapMemory(device, vertexBufferMemory);
 
 	VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT] = {};
 	VkCommandBufferAllocateInfo commandBufferAllocInfo = {};
@@ -954,7 +1017,7 @@ int main(void) {
 		vkCmdSetScissor(commandBuffers[frameCounter], 0, 1, &scissor);
 
 		VkDeviceSize offsets[] = {0};
-		vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &vertexBuffer, offsets);
+		vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &vertexBuffer.buffer, offsets);
 		vkCmdDraw(commandBuffers[frameCounter], 3, 1, 0, 0);
 
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
