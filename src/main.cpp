@@ -1093,7 +1093,7 @@ int main(void) {
 
 		ModelViewProjection mvp = {};
 		//TODO: add some dynamic rotation to the model matrix
-		mvp.model = initIdentityMatrix();
+		mvp.model = scaleMatrix(initIdentityMatrix(), 0.5);
 		//TODO: replace identity matrix for view with lookAt generated matrix
 		mvp.view = initIdentityMatrix();
 		//TODO: replace identity matrix for projection with perspective matrix
