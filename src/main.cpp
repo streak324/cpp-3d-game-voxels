@@ -39,9 +39,9 @@ struct Buffer {
 };
 
 struct ModelViewProjection {
-	Matrix4 model;
-	Matrix4 view;
-	Matrix4 projection;
+	math::Matrix4 model;
+	math::Matrix4 view;
+	math::Matrix4 projection;
 };
 
 inline void vkCheck(VkResult result) {
@@ -747,10 +747,10 @@ int main(void) {
 	rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizationStateCreateInfo.lineWidth = 1.0f;
 	//TODO: use cull mode back and frontface counter clockwise when using persptive matrix and inverting y coordinate
-	//rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-	//rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-	rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	//rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	//rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	rasterizationStateCreateInfo.depthBiasEnable = false;
 	rasterizationStateCreateInfo.depthBiasConstantFactor = 0.0f;
 	rasterizationStateCreateInfo.depthBiasClamp = 0.0f;
@@ -1093,11 +1093,9 @@ int main(void) {
 
 		ModelViewProjection mvp = {};
 		//TODO: add some dynamic rotation to the model matrix
-		mvp.model = scaleMatrix(initIdentityMatrix(), 0.5);
-		//TODO: replace identity matrix for view with lookAt generated matrix
-		mvp.view = initIdentityMatrix();
-		//TODO: replace identity matrix for projection with perspective matrix
-		mvp.projection = initIdentityMatrix();
+		mvp.model = math::initTranslationMatrix(math::Vector3{0.0f, 0.0f, -10.0f}).multiply(math::initScaleMatrix(200.0f));
+		mvp.view = math::lookAt(math::Vector3{1.0f, 1.0f, 1.0f}, math::Vector3{0.0f, 0.0f, 0.0f}, math::Vector3{0.0f, 1.0f, 0.0f});
+		mvp.projection = math::initPerspectiveMatrix((f32)swapchain.extent.width, -(f32)swapchain.extent.height, 1000.0f, 0.1f);
 
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &vertexBuffer.buffer, offsets);
