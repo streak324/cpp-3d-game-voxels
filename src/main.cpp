@@ -11,44 +11,46 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
-typedef int8_t i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
-
-typedef uint8_t u8;
-typedef uint32_t u32;
-typedef uint64_t u64;
-typedef uint16_t u16;
-
-typedef float f32;
-typedef double f64;
-
-typedef u32 bool32;
-
-#define nil nullptr
-
-#define min(a, b) (a < b ? a : b)
-#define max(a, b) (a > b ? a : b)
-
-inline void assert(u8 b) {
-	#ifndef NDEBUG
-		if (!b) {
-			*((char*) 0) = 0;
-		}
-	#endif
-}
+#include "common.h"
+#include "math.h"
 
 bool framebufferResized = false;
-
-void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
-	framebufferResized = true;
-}
-
 struct PositionColorVertex {
 	f32 x, y, z;
 	f32 r, g, b, a;
 };
+const u32 MAX_FRAMES_IN_FLIGHT = 2;
+
+struct Swapchain {
+	VkSwapchainKHR handle;
+	u32 imageCount;
+	VkImage *images;
+	VkImageView *imageViews;
+	VkFramebuffer *framebuffers;
+	VkExtent2D extent;
+};
+
+struct Buffer {
+	VkBuffer buffer;
+	VkDeviceMemory memory;
+	VkResult createResult;
+	VkDeviceSize size;
+	void * mappedData;
+};
+
+struct ModelViewProjection {
+	Matrix4 model;
+	Matrix4 view;
+	Matrix4 projection;
+};
+
+inline void vkCheck(VkResult result) {
+	assert(result == VK_SUCCESS);
+}
+
+void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+	framebufferResized = true;
+}
 
 VkResult createShaderFromFile(VkDevice device , const char * shaderFilePath, VkShaderModule * shaderModule) {
 	FILE * shaderFile;
@@ -79,24 +81,6 @@ VkResult createShaderFromFile(VkDevice device , const char * shaderFilePath, VkS
 	shaderModuleCreateInfo.pCode = (const u32*) shaderData;
 	return vkCreateShaderModule(device, &shaderModuleCreateInfo, nil, shaderModule);
 }
-
-const u32 MAX_FRAMES_IN_FLIGHT = 2;
-
-struct Swapchain {
-	VkSwapchainKHR handle;
-	u32 imageCount;
-	VkImage *images;
-	VkImageView *imageViews;
-	VkFramebuffer *framebuffers;
-	VkExtent2D extent;
-};
-
-struct Buffer {
-	VkBuffer buffer;
-	VkDeviceMemory memory;
-	VkResult createResult;
-	VkDeviceSize size;
-};
 
 Buffer createBuffer(VkPhysicalDevice physicalDevice, VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags) {
 	Buffer buffer;
@@ -680,7 +664,7 @@ int main(void) {
 		return 1;	
 	}
 
-	const char * vertexShaderFilePath = "./spir-v/simple-input-position-color.vert.spv";
+	const char * vertexShaderFilePath = "./spir-v/mvp-input-position-color.vert.spv";
 	VkShaderModule vertexShaderModule;
 	if(createShaderFromFile(device , vertexShaderFilePath, &vertexShaderModule) != VK_SUCCESS) {
 		printf("unable to create vertex shader module!\n");
@@ -762,6 +746,9 @@ int main(void) {
 	rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;
 	rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizationStateCreateInfo.lineWidth = 1.0f;
+	//TODO: use cull mode back and frontface counter clockwise when using persptive matrix and inverting y coordinate
+	//rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+	//rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
 	rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	rasterizationStateCreateInfo.depthBiasEnable = false;
@@ -799,10 +786,29 @@ int main(void) {
 	colorBlendingState.blendConstants[2];
 	colorBlendingState.blendConstants[3];
 
+
+	VkDescriptorSetLayoutBinding uniformBufferLayoutBinding = {};
+	uniformBufferLayoutBinding.binding = 0;
+	uniformBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniformBufferLayoutBinding.descriptorCount = 1;
+	uniformBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	uniformBufferLayoutBinding.pImmutableSamplers = nil;
+
+	VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = 1;
+	layoutInfo.pBindings = &uniformBufferLayoutBinding;
+
+	VkDescriptorSetLayout uniformBufferDescriptorSetLayout;
+	vkCheck(vkCreateDescriptorSetLayout(device, &layoutInfo, nil, &uniformBufferDescriptorSetLayout));
+
 	VkPipelineLayout pipelineLayout;
 
 	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
-	//TODO: empty pipeline layout. use push constants in here for the view projection matrix
+	pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutCreateInfo.setLayoutCount = 1;
+	pipelineLayoutCreateInfo.pSetLayouts = &uniformBufferDescriptorSetLayout;
+
 	pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 
 	if (vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nil, &pipelineLayout) != VK_SUCCESS) {
@@ -873,6 +879,7 @@ int main(void) {
 		printf("failed to create vertex buffer!!!\n");
 		return 1;
 	}
+
 	VkCommandBufferAllocateInfo copyCmdBufferAllocInfo = {};
 	copyCmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	copyCmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -942,6 +949,38 @@ int main(void) {
 		vkQueueWaitIdle(graphicsQueue);
 	}
 
+	Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
+	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		uniformBuffers[i] = createBuffer(physicalDevice, device, sizeof(ModelViewProjection), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		vkMapMemory(device, uniformBuffers[i].memory, 0, sizeof(ModelViewProjection), 0, &uniformBuffers[i].mappedData);
+	}
+
+	VkDescriptorPoolSize poolSize = {};
+	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize.descriptorCount = MAX_FRAMES_IN_FLIGHT;
+
+	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
+	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	descriptorPoolInfo.poolSizeCount = 1;
+	descriptorPoolInfo.pPoolSizes = &poolSize;
+	descriptorPoolInfo.maxSets = MAX_FRAMES_IN_FLIGHT;
+
+	VkDescriptorPool descriptorPool;
+	vkCheck(vkCreateDescriptorPool(device, &descriptorPoolInfo, nil, &descriptorPool));
+
+	VkDescriptorSetLayout descriptorSetLayoutFrames[MAX_FRAMES_IN_FLIGHT];
+	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		descriptorSetLayoutFrames[i] = uniformBufferDescriptorSetLayout;
+	}
+	VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
+	descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	descriptorSetAllocateInfo.descriptorPool = descriptorPool;
+	descriptorSetAllocateInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
+	descriptorSetAllocateInfo.pSetLayouts = descriptorSetLayoutFrames;
+
+	VkDescriptorSet descriptorSetFrames[MAX_FRAMES_IN_FLIGHT];
+
+	vkCheck(vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, descriptorSetFrames));
 
 	VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT] = {};
 	VkCommandBufferAllocateInfo commandBufferAllocInfo = {};
@@ -1052,14 +1091,41 @@ int main(void) {
 		scissor.extent = swapchain.extent;
 		vkCmdSetScissor(commandBuffers[frameCounter], 0, 1, &scissor);
 
+		ModelViewProjection mvp = {};
+		//TODO: add some dynamic rotation to the model matrix
+		mvp.model = initIdentityMatrix();
+		//TODO: replace identity matrix for view with lookAt generated matrix
+		mvp.view = initIdentityMatrix();
+		//TODO: replace identity matrix for projection with perspective matrix
+		mvp.projection = initIdentityMatrix();
+
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &vertexBuffer.buffer, offsets);
 
 		vkCmdBindIndexBuffer(commandBuffers[frameCounter], indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-		vkCmdDrawIndexed(commandBuffers[frameCounter], sizeof(indices)/sizeof(indices[0]), 1, 0, 0, 0);
+		memcpy(uniformBuffers[frameCounter].mappedData, &mvp, sizeof(mvp));
 
-		//vkCmdDraw(commandBuffers[frameCounter], 3, 1, 0, 0);
+		VkDescriptorBufferInfo bufferInfo = {};
+		bufferInfo.buffer = uniformBuffers[frameCounter].buffer;
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(ModelViewProjection);
+
+		VkWriteDescriptorSet descriptorWrite = {};
+		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite.dstSet = descriptorSetFrames[frameCounter];
+		descriptorWrite.dstBinding = 0;
+		descriptorWrite.dstArrayElement = 0;
+		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrite.descriptorCount = 1;
+		descriptorWrite.pBufferInfo = &bufferInfo;
+		descriptorWrite.pImageInfo = nil;
+		descriptorWrite.pTexelBufferView = nil;
+
+		vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nil);
+
+		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSetFrames[frameCounter], 0, nil);
+		vkCmdDrawIndexed(commandBuffers[frameCounter], sizeof(indices)/sizeof(indices[0]), 1, 0, 0, 0);
 
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
 
