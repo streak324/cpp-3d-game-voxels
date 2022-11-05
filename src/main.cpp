@@ -847,10 +847,20 @@ int main(void) {
 	}
 
 	f32 vertices[] = {
-		0.0, -0.5, 0.0,	1.0, 1.0, 1.0, 1.0,
+		0.5, -0.5, 0.0,	1.0, 1.0, 1.0, 1.0,
 		0.5, 0.5, 0.0, 0.0, 1.0, 0.0, 1.0,
-		-0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 1.0
+		-0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 1.0,
+		-0.5, -0.5, 0.0, 1.0, 0.0, 0.0, 1.0
 	};
+	u32 indices[] = {
+		0, 1, 2, 2, 3, 0	
+	};
+
+	Buffer indexBuffer = createBuffer(physicalDevice, device, sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	if (indexBuffer.createResult != VK_SUCCESS) {
+		printf("failed to create index buffer!!!\n");
+		return 1;
+	}
 
 	Buffer stagingBuffer = createBuffer(physicalDevice, device, sizeof(vertices), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	if (stagingBuffer.createResult != VK_SUCCESS) {
@@ -863,47 +873,73 @@ int main(void) {
 		printf("failed to create vertex buffer!!!\n");
 		return 1;
 	}
+	VkCommandBufferAllocateInfo copyCmdBufferAllocInfo = {};
+	copyCmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	copyCmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	copyCmdBufferAllocInfo.commandPool = commandPool;
+	copyCmdBufferAllocInfo.commandBufferCount = 1;
+	VkCommandBuffer copyDataCmdBuffer;
+	if (vkAllocateCommandBuffers(device, &copyCmdBufferAllocInfo, &copyDataCmdBuffer) != VK_SUCCESS) {
+		printf("unable to allocate a copy buffer command buffer!!!\n");
+		return 1;
+	}
 
 	{
+		vkResetCommandBuffer(copyDataCmdBuffer, 0);
+
 		void *data;
 		vkMapMemory(device, stagingBuffer.memory, 0, stagingBuffer.size, 0, &data);
 		memcpy(data, vertices, sizeof(vertices));
 		vkUnmapMemory(device, stagingBuffer.memory);
-	}
-
-	{
-		VkCommandBufferAllocateInfo copyCmdBufferAllocInfo = {};
-		copyCmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		copyCmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		copyCmdBufferAllocInfo.commandPool = commandPool;
-		copyCmdBufferAllocInfo.commandBufferCount = 1;
-		VkCommandBuffer copyBufferCmdBuffer;
-		if (vkAllocateCommandBuffers(device, &copyCmdBufferAllocInfo, &copyBufferCmdBuffer) != VK_SUCCESS) {
-			printf("unable to allocate a copy buffer command buffer!!!\n");
-			return 1;
-		}
 
 		VkCommandBufferBeginInfo beginInfo = {};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		vkBeginCommandBuffer(copyBufferCmdBuffer, &beginInfo);
+		vkBeginCommandBuffer(copyDataCmdBuffer, &beginInfo);
 
 		VkBufferCopy copyRegion = {};
 		copyRegion.srcOffset = 0;
 		copyRegion.dstOffset = 0;
-		copyRegion.size = stagingBuffer.size;
-		vkCmdCopyBuffer(copyBufferCmdBuffer, stagingBuffer.buffer, vertexBuffer.buffer, 1, &copyRegion);
-		vkEndCommandBuffer(copyBufferCmdBuffer);
+		copyRegion.size = sizeof(vertices);
+		vkCmdCopyBuffer(copyDataCmdBuffer, stagingBuffer.buffer, vertexBuffer.buffer, 1, &copyRegion);
+		vkEndCommandBuffer(copyDataCmdBuffer);
 
 		VkSubmitInfo submitInfo = {};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &copyBufferCmdBuffer;
+		submitInfo.pCommandBuffers = &copyDataCmdBuffer;
 
 		vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
 		vkQueueWaitIdle(graphicsQueue);
+	}
 
-		vkFreeCommandBuffers(device, commandPool, 1, &copyBufferCmdBuffer);
+	{
+		vkResetCommandBuffer(copyDataCmdBuffer, 0);
+
+		void *data;
+		vkMapMemory(device, stagingBuffer.memory, 0, stagingBuffer.size, 0, &data);
+		memcpy(data, indices, sizeof(indices));
+		vkUnmapMemory(device, stagingBuffer.memory);
+
+		VkCommandBufferBeginInfo beginInfo = {};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+		vkBeginCommandBuffer(copyDataCmdBuffer, &beginInfo);
+
+		VkBufferCopy copyRegion = {};
+		copyRegion.srcOffset = 0;
+		copyRegion.dstOffset = 0;
+		copyRegion.size = sizeof(indices);
+		vkCmdCopyBuffer(copyDataCmdBuffer, stagingBuffer.buffer, indexBuffer.buffer, 1, &copyRegion);
+		vkEndCommandBuffer(copyDataCmdBuffer);
+
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &copyDataCmdBuffer;
+
+		vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+		vkQueueWaitIdle(graphicsQueue);
 	}
 
 
@@ -1018,7 +1054,12 @@ int main(void) {
 
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &vertexBuffer.buffer, offsets);
-		vkCmdDraw(commandBuffers[frameCounter], 3, 1, 0, 0);
+
+		vkCmdBindIndexBuffer(commandBuffers[frameCounter], indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+		vkCmdDrawIndexed(commandBuffers[frameCounter], sizeof(indices)/sizeof(indices[0]), 1, 0, 0, 0);
+
+		//vkCmdDraw(commandBuffers[frameCounter], 3, 1, 0, 0);
 
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
 
