@@ -42,6 +42,7 @@ namespace math {
 	Matrix4 scaleMatrix(Matrix4 m, f32 scalar);
 	Matrix4 initPerspectiveMatrix(f32 width, f32 height, f32 zFar, f32 zNear);
 	Matrix4 lookAt(Vector3 from, Vector3 to, Vector3 up);
+	Matrix4 initXAxisRotationMatrix(f32 angle);
 	Matrix4 initYAxisRotationMatrix(f32 angle);
 	Matrix4 initZAxisRotationMatrix(f32 angle);
 }

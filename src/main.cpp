@@ -20,8 +20,8 @@
 
 bool framebufferResized = false;
 struct PositionColorVertex {
-	f32 x, y, z;
-	f32 r, g, b, a;
+	f32 position[3];
+	f32 color[4];
 };
 const u32 MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -856,23 +856,25 @@ int main(void) {
 		return 1;
 	}
 
-	f32 vertices[] = {
-		0.5, -0.5, 0.0,	1.0, 1.0, 1.0, 1.0,
-		0.5, 0.5, 0.0, 0.0, 1.0, 0.0, 1.0,
-		-0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 1.0,
-		-0.5, -0.5, 0.0, 1.0, 0.0, 0.0, 1.0
+	PositionColorVertex vertices[] = {
+		// 3D Position, 4D Color
+		{ { 0.5, -0.5, -0.5 }, { 1.0, 1.0, 1.0, 1.0 } },
+		{ { 0.5, 0.5, -0.5, }, { -0.5, 1.0, -0.5, 1.0 } },
+		{ { -0.5, 0.5, -0.5 }, { -0.5, -0.5, 1.0, 1.0 } },
+		{ { -0.5, -0.5, -0.5} , { 1.0, -0.5, -0.5, 1.0 } },
 
-		,
-
-		//0.5, -0.5, 0.5,	1.0, 1.0, 1.0, 1.0,
-		//0.5, 0.5, 0.5, 0.0, 1.0, 0.0, 1.0,
-		//-0.5, 0.5, 0.5, 0.0, 0.0, 1.0, 1.0,
-		//-0.5, -0.5, 0.5, 1.0, 0.0, 0.0, 1.0
+		{ { 0.5, -0.5, 0.5 }, { 1.0, 1.0, 1.0, 1.0 } },
+		{ { 0.5, 0.5, 0.5, }, { -0.5, 1.0, -0.5, 1.0 } },
+		{ { -0.5, 0.5, 0.5 }, { -0.5, -0.5, 1.0, 1.0 } },
+		{ { -0.5, -0.5, 0.5} , { 1.0, -0.5, -0.5, 1.0 } },
 	};
 	u32 indices[] = {
-		0, 1, 2, 2, 3, 0	
-
-
+		0, 1, 2, 2, 3, 0,
+		4, 5, 1, 1, 0, 4,
+		1, 5, 6, 6, 2, 1,
+		3, 7, 6, 6, 2, 3,
+		0, 4, 7, 7, 3, 0,
+		4, 5, 6, 6, 7, 4
 	};
 
 	Buffer indexBuffer = createBuffer(physicalDevice, device, sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -1106,8 +1108,8 @@ int main(void) {
 
 		ModelViewProjection mvp = {};
 		//TODO: add some dynamic rotation to the model matrix
-		math::Matrix4 modelRotation = math::initZAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
-		mvp.model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 0.0f, -2.0f });
+		math::Matrix4 modelRotation = math::initYAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
+		mvp.model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 0.0f, -3.0f });
 		mvp.model = math::scaleMatrix(mvp.model, 3.0f);
 		mvp.model = mvp.model.multiply(modelRotation);
 
@@ -1116,7 +1118,7 @@ int main(void) {
 		f32 camX = cosf(glfwGetTime());
 		f32 camZ = sinf(glfwGetTime());
 
-		mvp.view = math::lookAt(math::Vector3{1.0f, 0.0f, 1.0f}, math::Vector3{0.0f, 0.0f, -2.0f}, math::Vector3{0.0f, 1.0f, 0.0f});
+		mvp.view = math::initIdentityMatrix();//math::lookAt(math::Vector3{1.0f, 0.0f, 3.0f}, math::Vector3{0.0f, 0.0f, -2.0f}, math::Vector3{0.0f, 1.0f, 0.0f});
 		mvp.projection = math::initPerspectiveMatrix((f32)swapchain.extent.width/(f32)swapchain.extent.height, 1.0f, 100.0f, 0.1f);
 
 		VkDeviceSize offsets[] = {0};

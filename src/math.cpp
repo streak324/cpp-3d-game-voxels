@@ -110,12 +110,24 @@ namespace math {
 		return m;
 	}
 
-	Matrix4 initYAxisRotationMatrix(f32 angle) {
+
+	Matrix4 initXAxisRotationMatrix(f32 angle) {
 		Matrix4 m = {};
 		m.e.m00 = 1.0f;
 		m.e.m11 = cosf(angle);
 		m.e.m12 = -sinf(angle);
 		m.e.m21 = sinf(angle);
+		m.e.m22 = cosf(angle);
+		m.e.m33 = 1.0f;
+		return m;
+	}
+
+	Matrix4 initYAxisRotationMatrix(f32 angle) {
+		Matrix4 m = {};
+		m.e.m00 = cosf(angle);
+		m.e.m02 = sinf(angle);
+		m.e.m11 = 1.0f;
+		m.e.m20 = -sinf(angle);
 		m.e.m22 = cosf(angle);
 		m.e.m33 = 1.0f;
 		return m;
