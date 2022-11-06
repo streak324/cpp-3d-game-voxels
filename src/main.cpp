@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <malloc.h>
 #include <string.h>
+#include <math.h>
 
 #define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
@@ -11,6 +12,9 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
+//#include "glm/glm.hpp"
+//#include "glm/gtc/matrix_transform.hpp";
+//#include "glm/gtc/type_ptr.hpp";
 #include "common.h"
 #include "math.h"
 
@@ -857,9 +861,18 @@ int main(void) {
 		0.5, 0.5, 0.0, 0.0, 1.0, 0.0, 1.0,
 		-0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 1.0,
 		-0.5, -0.5, 0.0, 1.0, 0.0, 0.0, 1.0
+
+		,
+
+		//0.5, -0.5, 0.5,	1.0, 1.0, 1.0, 1.0,
+		//0.5, 0.5, 0.5, 0.0, 1.0, 0.0, 1.0,
+		//-0.5, 0.5, 0.5, 0.0, 0.0, 1.0, 1.0,
+		//-0.5, -0.5, 0.5, 1.0, 0.0, 0.0, 1.0
 	};
 	u32 indices[] = {
 		0, 1, 2, 2, 3, 0	
+
+
 	};
 
 	Buffer indexBuffer = createBuffer(physicalDevice, device, sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -1079,9 +1092,9 @@ int main(void) {
 
 		VkViewport viewport = {};
 		viewport.x = 0.0f;
-		viewport.y = 0.0f;
+		viewport.y = swapchain.extent.height;
 		viewport.width = (float) swapchain.extent.width;
-		viewport.height = (float) swapchain.extent.height;
+		viewport.height = -(float) swapchain.extent.height;
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
 		vkCmdSetViewport(commandBuffers[frameCounter], 0, 1, &viewport);
@@ -1093,9 +1106,13 @@ int main(void) {
 
 		ModelViewProjection mvp = {};
 		//TODO: add some dynamic rotation to the model matrix
-		mvp.model = math::initTranslationMatrix(math::Vector3{0.0f, 0.0f, -10.0f}).multiply(math::initScaleMatrix(200.0f));
-		mvp.view = math::lookAt(math::Vector3{1.0f, 1.0f, 1.0f}, math::Vector3{0.0f, 0.0f, 0.0f}, math::Vector3{0.0f, 1.0f, 0.0f});
-		mvp.projection = math::initPerspectiveMatrix((f32)swapchain.extent.width, -(f32)swapchain.extent.height, 1000.0f, 0.1f);
+		math::Matrix4 modelRotation = math::initZAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
+		mvp.model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 0.0f, -1.0f });
+		mvp.model = math::scaleMatrix(mvp.model, 1000.0f);
+		mvp.model = mvp.model.multiply(modelRotation);
+
+		mvp.view = math::lookAt(math::Vector3{0.0f, 0.0f, 0.0f}, math::Vector3{0.0f, 0.0f, -1.0f}, math::Vector3{0.0f, 1.0f, 0.0f});
+		mvp.projection = math::initPerspectiveMatrix((f32)swapchain.extent.width, (f32)swapchain.extent.height, 1000.0f, 0.1f);
 
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &vertexBuffer.buffer, offsets);

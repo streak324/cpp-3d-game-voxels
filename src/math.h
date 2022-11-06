@@ -1,4 +1,8 @@
 #include "common.h"
+
+#define PI32 3.1415926f
+#define TAU32 6.283185f
+
 namespace math {
 	struct Vector3 {
 		f32 x, y, z;
@@ -32,9 +36,11 @@ namespace math {
 	};
 
 	Matrix4 initIdentityMatrix();
-	Matrix4 initTranslationMatrix(Vector3 translate);
-	Matrix4 initScaleMatrix(Vector3 scale);
-	Matrix4 initScaleMatrix(f32 scalar);
+	Matrix4 translateMatrix(Matrix4 m, Vector3 translate);
+	Matrix4 scaleMatrix(Matrix4 m, Vector3 scale);
+	Matrix4 scaleMatrix(Matrix4 m, f32 scalar);
 	Matrix4 initPerspectiveMatrix(f32 width, f32 height, f32 zFar, f32 zNear);
 	Matrix4 lookAt(Vector3 from, Vector3 to, Vector3 up);
+	Matrix4 initYAxisRotationMatrix(f32 angle);
+	Matrix4 initZAxisRotationMatrix(f32 angle);
 }

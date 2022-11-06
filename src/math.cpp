@@ -61,29 +61,25 @@ namespace math {
 		return m;
 	}
 
-	Matrix4 initTranslationMatrix(Vector3 translate) {
-		Matrix4 s = {};
-		s.e.m00 = 1.0f;
-		s.e.m11 = 1.0f;
-		s.e.m22 = 1.0f;
-		s.e.m33 = 1.0f;
-		s.e.m03 = translate.x;
-		s.e.m13 = translate.y;
-		s.e.m23 = translate.z;
-		return s;
+
+	Matrix4 translateMatrix(Matrix4 m, Vector3 translate) {
+		m.e.m03 = translate.x;
+		m.e.m13 = translate.y;
+		m.e.m23 = translate.z;
+		return m;
 	}
 
-	Matrix4 initScaleMatrix(Vector3 scale) {
-		Matrix4 s  = {};
+	Matrix4 scaleMatrix(Matrix4 m, Vector3 scale) {
+		Matrix4 s = {};
 		s.e.m00 = scale.x;
 		s.e.m11 = scale.y;
 		s.e.m22 = scale.z;
-		s.e.m33 = 1.0;
-		return s;
+		s.e.m33 = 1.0f;
+		return m.multiply(s);
 	}
 
-	Matrix4 initScaleMatrix(f32 scalar) {
-		return initScaleMatrix(Vector3{scalar, scalar, scalar});
+	Matrix4 scaleMatrix(Matrix4 m, f32 scalar) {
+		return scaleMatrix(m, Vector3{scalar, scalar, scalar});
 	}
 
 	Matrix4 initPerspectiveMatrix(f32 width, f32 height, f32 zFar, f32 zNear) {
@@ -107,6 +103,28 @@ namespace math {
 		m.e.m20 = forward.x, m.e.m21 = forward.y, m.e.m22 = forward.z;
 		m.e.m30 = from.x, m.e.m31 = from.y, m.e.m32 = from.z;
 		m.e.m33 = 1.0f;
+		return m;
+	}
+
+	Matrix4 initYAxisRotationMatrix(f32 angle) {
+		Matrix4 m = {};
+		m.e.m00 = 1.0f;
+		m.e.m11 = cosf(angle);
+		m.e.m12 = -sinf(angle);
+		m.e.m21 = sinf(angle);
+		m.e.m22 = cosf(angle);
+		m.e.m33 = 1.0f;
+		return m;
+	}
+
+	Matrix4 initZAxisRotationMatrix(f32 angle) {
+		Matrix4 m = {};
+		m.e.m00 = cosf(angle);
+		m.e.m01 = -sinf(angle);
+		m.e.m10 = sinf(angle);
+		m.e.m11 = cosf(angle);
+		m.e.m22 = 1;
+		m.e.m33 = 1;
 		return m;
 	}
 };
