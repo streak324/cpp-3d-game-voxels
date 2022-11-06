@@ -1108,11 +1108,16 @@ int main(void) {
 		//TODO: add some dynamic rotation to the model matrix
 		math::Matrix4 modelRotation = math::initZAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
 		mvp.model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 0.0f, -2.0f });
-		mvp.model = math::scaleMatrix(mvp.model, 2.0f);
+		mvp.model = math::scaleMatrix(mvp.model, 3.0f);
 		mvp.model = mvp.model.multiply(modelRotation);
 
-		mvp.view = math::lookAt(math::Vector3{0.0, 0.0f, 0.0}, math::Vector3{0.0f, 0.0f, -1.0f}, math::Vector3{0.0f, 1.0f, 0.0f});
-		mvp.projection = math::initPerspectiveMatrix((f32)swapchain.extent.width/(f32)swapchain.extent.height, 1.0f, 10.0f, 0.1f);
+		f32 scale = 2.0f;
+
+		f32 camX = cosf(glfwGetTime());
+		f32 camZ = sinf(glfwGetTime());
+
+		mvp.view = math::lookAt(math::Vector3{1.0f, 0.0f, 1.0f}, math::Vector3{0.0f, 0.0f, -2.0f}, math::Vector3{0.0f, 1.0f, 0.0f});
+		mvp.projection = math::initPerspectiveMatrix((f32)swapchain.extent.width/(f32)swapchain.extent.height, 1.0f, 100.0f, 0.1f);
 
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &vertexBuffer.buffer, offsets);

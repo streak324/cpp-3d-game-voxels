@@ -105,7 +105,7 @@ namespace math {
 		m.e.m00 = right.x, m.e.m01 = right.y, m.e.m02 = right.z;
 		m.e.m10 = newUp.x, m.e.m11 = newUp.y, m.e.m12 = newUp.z;
 		m.e.m20 = forward.x, m.e.m21 = forward.y, m.e.m22 = forward.z;
-		m.e.m30 = right.dot(from.negate()), m.e.m31 = from.y, m.e.m32 = from.z;
+		m.e.m30 = right.dot(from.negate()), m.e.m31 = newUp.dot(from.negate()), m.e.m32 = forward.dot(from.negate());
 		m.e.m33 = 1.0f;
 		return m;
 	}
