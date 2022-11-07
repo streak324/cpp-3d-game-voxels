@@ -25,7 +25,7 @@ bool framebufferResized = false;
 struct PositionColorTextureVertex {
 	f32 position[3];
 	f32 color[4];
-	//f32 textureCoordinates[2];
+	f32 textureCoordinates[2];
 };
 const u32 MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -858,14 +858,14 @@ int main(void) {
 		return 1;	
 	}
 
-	const char * vertexShaderFilePath = "./spir-v/mvp-input-position-color.vert.spv";
+	const char * vertexShaderFilePath = "./spir-v/shader.vert.spv";
 	VkShaderModule vertexShaderModule;
 	if(createShaderFromFile(device , vertexShaderFilePath, &vertexShaderModule) != VK_SUCCESS) {
 		printf("unable to create vertex shader module!\n");
 		return 1;
 	}
 
-	const char * fragmentShaderFilePath = "./spir-v/simple-input-color.frag.spv";
+	const char * fragmentShaderFilePath = "./spir-v/shader.frag.spv";
 	VkShaderModule fragmentShaderModule;
 	if(createShaderFromFile(device , fragmentShaderFilePath, &fragmentShaderModule) != VK_SUCCESS) {
 		printf("unable to create fragment shader module!\n");
@@ -906,30 +906,27 @@ int main(void) {
 	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
 	VkVertexInputAttributeDescription positionColorAttributeDescriptions[3] = {};
+
 	positionColorAttributeDescriptions[0].binding = 0;
 	positionColorAttributeDescriptions[0].location = 0;
 	positionColorAttributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 	positionColorAttributeDescriptions[0].offset = offsetof(PositionColorTextureVertex, position);
-	VkVertexInputAttributeDescription positionAttributeDescription = {};
+
 	positionColorAttributeDescriptions[1].binding = 0;
 	positionColorAttributeDescriptions[1].location = 1;
 	positionColorAttributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	positionColorAttributeDescriptions[1].offset = offsetof(PositionColorTextureVertex, color);
 
-	//TODO: ADD TEXTURES
-	//VkVertexInputAttributeDescription positionAttributeDescription = {};
-	//positionColorAttributeDescriptions[2].binding = 0;
-	//positionColorAttributeDescriptions[2].location = 2;
-	//positionColorAttributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-	//positionColorAttributeDescriptions[2].offset = offsetof(PositionColorTextureVertex, textureCoordinates);
-
+	positionColorAttributeDescriptions[2].binding = 0;
+	positionColorAttributeDescriptions[2].location = 2;
+	positionColorAttributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+	positionColorAttributeDescriptions[2].offset = offsetof(PositionColorTextureVertex, textureCoordinates);
 
 	VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
 	vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
 	vertexInputStateCreateInfo.pVertexBindingDescriptions = &bindingDescription;
-	//TODO: set this to 3
-	vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 2;
+	vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 3;
 	vertexInputStateCreateInfo.pVertexAttributeDescriptions = positionColorAttributeDescriptions;
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
@@ -1091,52 +1088,52 @@ int main(void) {
 		//{ {-1.0f, -1.0f, 1.0f }, { 1.0, 0.0, 0.0, 1.0 } }
 
 		//front
-		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, }, // 0.0f, 0.0f,
-		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, }, //1.0f, 0.0f,
-		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, }, //1.0f, 1.0f,
-		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, }, //1.0f, 1.0f,
-		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, }, // 0.0f, 1.0f,
-		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, }, // 0.0f, 0.0f,
+		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, {  0.0f, 0.0f, } },
+		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, {  0.0f, 1.0f, } },
+		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, {  0.0f, 0.0f, } },
 
 		//back
-		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 0.0f, 0.0f, 1.0f },  }, // 0.0f, 0.0f,
-		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 0.0f, 0.0f, 1.0f, }, }, // 0.0f, 1.0f,
-		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 0.0f, 0.0f, 1.0f, }, }, //1.0f, 1.0f,
-		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 0.0f, 0.0f, 1.0f, }, }, //1.0f, 1.0f,
-		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 0.0f, 0.0f, 1.0f, }, }, //1.0f, 0.0f,
-		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 0.0f, 0.0f, 1.0f, }, }, // 0.0f, 0.0f,
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 0.0f, 0.0f, 1.0f },  {  0.0f, 0.0f, } },
+		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 0.0f, 0.0f, 1.0f, }, {  0.0f, 1.0f, } },
+		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 0.0f, 0.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 0.0f, 0.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 0.0f, 0.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 0.0f, 0.0f, 1.0f, }, {  0.0f, 0.0f, } },
 
 		//left side
-		{ { -0.5f,  0.5f,  0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, }, // 1.0f, 0.0f,
-		{ { -0.5f,  0.5f, -0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, }, // 1.0f, 1.0f,
-		{ { -0.5f, -0.5f, -0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, }, // 0.0f, 1.0f,
-		{ { -0.5f, -0.5f, -0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, }, // 0.0f, 1.0f,
-		{ { -0.5f, -0.5f,  0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, }, // 0.0f, 0.0f,
-		{ { -0.5f,  0.5f,  0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, }, // 1.0f, 0.0f,
+		{ { -0.5f,  0.5f,  0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, {  1.0f, 0.0f, } },
+		{ { -0.5f,  0.5f, -0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, {  1.0f, 1.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, {  0.0f, 1.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, {  0.0f, 1.0f, } },
+		{ { -0.5f, -0.5f,  0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, {  0.0f, 0.0f, } },
+		{ { -0.5f,  0.5f,  0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, {  1.0f, 0.0f, } },
 
 		//right side
-		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, }, //1.0f, 0.0f,
-		{ { 0.5f, -0.5f,  0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, }, //0.0f, 0.0f,
-		{ { 0.5f, -0.5f, -0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, }, //0.0f, 1.0f,
-		{ { 0.5f, -0.5f, -0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, }, //0.0f, 1.0f,
-		{ { 0.5f,  0.5f, -0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, }, //1.0f, 1.0f,
-		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, }, //1.0f, 0.0f,
+		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f, -0.5f,  0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
+		{ { 0.5f, -0.5f, -0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
+		{ { 0.5f, -0.5f, -0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
+		{ { 0.5f,  0.5f, -0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
 
 		//bottom side
-		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 0.0f, 1.0f, }, }, // 0.0f, 1.0f,
-		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 0.0f, 1.0f, }, }, //1.0f, 1.0f,
-		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 0.0f, 1.0f, }, }, //1.0f, 0.0f,
-		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 0.0f, 1.0f, }, }, //1.0f, 0.0f,
-		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 0.0f, 1.0f, }, }, // 0.0f, 0.0f,
-		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 0.0f, 1.0f, }, }, // 0.0f, 1.0f,
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 0.0f, 1.0f, }, {  0.0f, 1.0f, } },
+		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 0.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 0.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 0.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 0.0f, 1.0f, }, {  0.0f, 0.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 0.0f, 1.0f, }, {  0.0f, 1.0f, } },
 
 		//top side
-		{ { -0.5f,  0.5f, -0.5f, }, { 0.0f, 1.0f, 1.0f, 1.0f, }, }, // 0.0f, 1.0f,
-		{ { -0.5f,  0.5f,  0.5f, }, { 0.0f, 1.0f, 1.0f, 1.0f, }, }, // 0.0f, 0.0f,
-		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 1.0f, 1.0f, 1.0f, }, }, //1.0f, 0.0f,
-		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 1.0f, 1.0f, 1.0f, }, }, //1.0f, 0.0f,
-		{ { 0.5f,  0.5f, -0.5f,  }, { 0.0f, 1.0f, 1.0f, 1.0f, }, }, //1.0f, 1.0f,
-		{ { -0.5f,  0.5f, -0.5f, }, { 0.0f, 1.0f, 1.0f, 1.0f, }, }, // 0.0f, 1.0f
+		{ { -0.5f,  0.5f, -0.5f, }, { 0.0f, 1.0f, 1.0f, 1.0f, }, {  0.0f, 1.0f, } },
+		{ { -0.5f,  0.5f,  0.5f, }, { 0.0f, 1.0f, 1.0f, 1.0f, }, {  0.0f, 0.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f,  0.5f, -0.5f,  }, { 0.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { -0.5f,  0.5f, -0.5f, }, { 0.0f, 1.0f, 1.0f, 1.0f, }, {  0.0f, 1.0f } },
 
 
 	};
@@ -1430,33 +1427,31 @@ int main(void) {
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(ModelViewProjection);
 
-		VkWriteDescriptorSet descriptorWrite = {};
-		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrite.dstSet = descriptorSetFrames[i];
-		descriptorWrite.dstBinding = 0;
-		descriptorWrite.dstArrayElement = 0;
-		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrite.descriptorCount = 1;
-		descriptorWrite.pBufferInfo = &bufferInfo;
-		descriptorWrite.pImageInfo = nil;
-		descriptorWrite.pTexelBufferView = nil;
+		VkWriteDescriptorSet descriptorWrites[2] = {};
+		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[0].dstSet = descriptorSetFrames[i];
+		descriptorWrites[0].dstBinding = 0;
+		descriptorWrites[0].dstArrayElement = 0;
+		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrites[0].descriptorCount = 1;
+		descriptorWrites[0].pBufferInfo = &bufferInfo;
+		descriptorWrites[0].pImageInfo = nil;
+		descriptorWrites[0].pTexelBufferView = nil;
 
-		
-		//VkDescriptorImageInfo imageInfo = {};
-		//imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		//imageInfo.imageView = textureImage.imageView;
-		//imageInfo.sampler = linearFilterSampler;
+		VkDescriptorImageInfo imageInfo = {};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = textureImage.imageView;
+		imageInfo.sampler = linearFilterSampler;
 
-		//descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		//descriptorWrites[1].dstSet = descriptorSetFrames[i];
-		//descriptorWrites[1].dstBinding = 1;
-		//descriptorWrites[1].dstArrayElement = 0;
-		//descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		//descriptorWrites[1].descriptorCount = 1;
-		//descriptorWrites[1].pImageInfo = &imageInfo;
+		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[1].dstSet = descriptorSetFrames[i];
+		descriptorWrites[1].dstBinding = 1;
+		descriptorWrites[1].dstArrayElement = 0;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[1].descriptorCount = 1;
+		descriptorWrites[1].pImageInfo = &imageInfo;
 
-		//TODO: update this to 2
-		vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nil);
+		vkUpdateDescriptorSets(device, 2, descriptorWrites, 0, nil);
 	}
 
 
