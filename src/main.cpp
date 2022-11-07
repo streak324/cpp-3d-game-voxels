@@ -1078,18 +1078,66 @@ int main(void) {
 		return 1;
 	}
 
-	PositionColorTextureVertex cubeVertices[] = {
+	PositionColorTextureVertex cubeVertices[36] = {
 		// 3D Position, 4D Color
+		//{ {1.0f, 1.0f, -1.0f }, { 1.0, 1.0, 1.0, 1.0 } },
+		//{ {1.0f, -1.0f, -1.0f }, { 0.0, 1.0, 0.0, 1.0 } },
+		//{ {1.0f, 1.0f, 1.0f }, { 0.0, 0.0, 1.0, 1.0 } },
+		//{ {1.0f, -1.0f, 1.0f }, { 1.0, 0.0, 0.0, 1.0 } },
 
-		{ {1.0f, 1.0f, -1.0f }, { 1.0, 1.0, 1.0, 1.0 } },
-		{ {1.0f, -1.0f, -1.0f }, { 0.0, 1.0, 0.0, 1.0 } },
-		{ {1.0f, 1.0f, 1.0f }, { 0.0, 0.0, 1.0, 1.0 } },
-		{ {1.0f, -1.0f, 1.0f }, { 1.0, 0.0, 0.0, 1.0 } },
+		//{ {-1.0f, 1.0f, -1.0f }, { 1.0, 1.0, 1.0, 1.0 } },
+		//{ {-1.0f, -1.0f, -1.0f }, { 0.0, 1.0, 0.0, 1.0 } },
+		//{ {-1.0f, 1.0f, 1.0f }, { 0.0, 0.0, 1.0, 1.0 } },
+		//{ {-1.0f, -1.0f, 1.0f }, { 1.0, 0.0, 0.0, 1.0 } }
 
-		{ {-1.0f, 1.0f, -1.0f }, { 1.0, 1.0, 1.0, 1.0 } },
-		{ {-1.0f, -1.0f, -1.0f }, { 0.0, 1.0, 0.0, 1.0 } },
-		{ {-1.0f, 1.0f, 1.0f }, { 0.0, 0.0, 1.0, 1.0 } },
-		{ {-1.0f, -1.0f, 1.0f }, { 1.0, 0.0, 0.0, 1.0 } }
+		//front
+		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, }, // 0.0f, 0.0f,
+		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, }, //1.0f, 0.0f,
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, }, //1.0f, 1.0f,
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, }, //1.0f, 1.0f,
+		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, }, // 0.0f, 1.0f,
+		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, }, // 0.0f, 0.0f,
+
+		//back
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 0.0f, 0.0f, 1.0f },  }, // 0.0f, 0.0f,
+		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 0.0f, 0.0f, 1.0f, }, }, // 0.0f, 1.0f,
+		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 0.0f, 0.0f, 1.0f, }, }, //1.0f, 1.0f,
+		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 0.0f, 0.0f, 1.0f, }, }, //1.0f, 1.0f,
+		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 0.0f, 0.0f, 1.0f, }, }, //1.0f, 0.0f,
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 0.0f, 0.0f, 1.0f, }, }, // 0.0f, 0.0f,
+
+		//left side
+		{ { -0.5f,  0.5f,  0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, }, // 1.0f, 0.0f,
+		{ { -0.5f,  0.5f, -0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, }, // 1.0f, 1.0f,
+		{ { -0.5f, -0.5f, -0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, }, // 0.0f, 1.0f,
+		{ { -0.5f, -0.5f, -0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, }, // 0.0f, 1.0f,
+		{ { -0.5f, -0.5f,  0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, }, // 0.0f, 0.0f,
+		{ { -0.5f,  0.5f,  0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, }, // 1.0f, 0.0f,
+
+		//right side
+		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, }, //1.0f, 0.0f,
+		{ { 0.5f, -0.5f,  0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, }, //0.0f, 0.0f,
+		{ { 0.5f, -0.5f, -0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, }, //0.0f, 1.0f,
+		{ { 0.5f, -0.5f, -0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, }, //0.0f, 1.0f,
+		{ { 0.5f,  0.5f, -0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, }, //1.0f, 1.0f,
+		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, }, //1.0f, 0.0f,
+
+		//bottom side
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 0.0f, 1.0f, }, }, // 0.0f, 1.0f,
+		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 0.0f, 1.0f, }, }, //1.0f, 1.0f,
+		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 0.0f, 1.0f, }, }, //1.0f, 0.0f,
+		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 0.0f, 1.0f, }, }, //1.0f, 0.0f,
+		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 0.0f, 1.0f, }, }, // 0.0f, 0.0f,
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 0.0f, 1.0f, }, }, // 0.0f, 1.0f,
+
+		//top side
+		{ { -0.5f,  0.5f, -0.5f, }, { 0.0f, 1.0f, 1.0f, 1.0f, }, }, // 0.0f, 1.0f,
+		{ { -0.5f,  0.5f,  0.5f, }, { 0.0f, 1.0f, 1.0f, 1.0f, }, }, // 0.0f, 0.0f,
+		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 1.0f, 1.0f, 1.0f, }, }, //1.0f, 0.0f,
+		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 1.0f, 1.0f, 1.0f, }, }, //1.0f, 0.0f,
+		{ { 0.5f,  0.5f, -0.5f,  }, { 0.0f, 1.0f, 1.0f, 1.0f, }, }, //1.0f, 1.0f,
+		{ { -0.5f,  0.5f, -0.5f, }, { 0.0f, 1.0f, 1.0f, 1.0f, }, }, // 0.0f, 1.0f
+
 
 	};
 	u32 indices[] = {
@@ -1492,7 +1540,7 @@ int main(void) {
 		vkCmdSetScissor(commandBuffers[frameCounter], 0, 1, &scissor);
 
 		ModelViewProjection mvp = {};
-		math::Matrix4 modelRotation = math::initXAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
+		math::Matrix4 modelRotation = math::initYAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
 		mvp.model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 0.0f, -8.0f });
 		mvp.model = math::scaleMatrix(mvp.model, 3.0f);
 		mvp.model = mvp.model.multiply(modelRotation);
@@ -1508,12 +1556,10 @@ int main(void) {
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &vertexBuffer.buffer, offsets);
 
-		vkCmdBindIndexBuffer(commandBuffers[frameCounter], indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
 		memcpy(uniformBuffers[frameCounter].mappedData, &mvp, sizeof(mvp));
 
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSetFrames[frameCounter], 0, nil);
-		vkCmdDrawIndexed(commandBuffers[frameCounter], sizeof(indices)/sizeof(indices[0]), 1, 0, 0, 0);
+		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 0);
 
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
 
