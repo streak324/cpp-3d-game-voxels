@@ -7,3 +7,9 @@ void assert(u8 b) {
 		}
 	#endif
 }
+
+void panic() {
+	#ifndef NDEBUG
+		*((char*) 0) = 0;
+	#endif
+}

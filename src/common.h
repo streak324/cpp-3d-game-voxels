@@ -21,3 +21,4 @@ typedef u32 bool32;
 #define max(a, b) (a > b ? a : b)
 
 void assert(u8 b);
+void panic();
