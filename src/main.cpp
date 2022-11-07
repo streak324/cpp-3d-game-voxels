@@ -56,6 +56,16 @@ void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 	framebufferResized = true;
 }
 
+u32 findMemoryType(VkPhysicalDeviceMemoryProperties memoryProperties, u32 memoryTypeBits, VkMemoryPropertyFlags desiredMemoryPropertyFlags) {
+	u32 memoryTypeIndex = 0;
+	for (u32 i = 0; i < memoryProperties.memoryTypeCount; i++) {
+		if ((memoryTypeBits & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & desiredMemoryPropertyFlags) == desiredMemoryPropertyFlags) {
+			memoryTypeIndex = i;
+			return memoryTypeIndex;
+		}
+	}
+}
+
 VkResult createShaderFromFile(VkDevice device , const char * shaderFilePath, VkShaderModule * shaderModule) {
 	FILE * shaderFile;
 	//TODO: fopen_s won't work with gcc
@@ -131,6 +141,12 @@ Buffer createBuffer(VkPhysicalDevice physicalDevice, VkDevice device, VkDeviceSi
 	return buffer;
 }
 
+struct Image {
+	VkImage image;
+	VkImageView imageView;
+	VkDeviceMemory memory;
+};
+
 VkResult createSwapchainAndRenderPass(
 	GLFWwindow *window,
 	VkPhysicalDevice physicalDevice,
@@ -140,10 +156,12 @@ VkResult createSwapchainAndRenderPass(
 	u32 queueFamilyIndicesCount,
 	bool32 isUsingSameQueueForGraphicsAndPresent,
 	VkRenderPass *renderPass,
-	Swapchain *swapchain
+	Swapchain *swapchain,
+	Image *depthImage
 ) {
 	vkDeviceWaitIdle(device);
 	framebufferResized = false;
+	VkResult result;
 
 	if (swapchain == nil) {
 		printf("swapchain is null\n");
@@ -226,6 +244,87 @@ VkResult createSwapchainAndRenderPass(
 		minImageCount = max(minImageCount, surfaceCapabilities.maxImageCount);
 	}
 
+	if (depthImage->image != VK_NULL_HANDLE) {
+		vkDestroyImageView(device, depthImage->imageView, nil);
+		vkDestroyImage(device, depthImage->image, nil);
+		vkFreeMemory(device, depthImage->memory, nil);
+	}
+
+	VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
+
+	VkImageCreateInfo depthImageInfo = {};
+	depthImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	depthImageInfo.pNext = nil;
+	depthImageInfo.imageType = VK_IMAGE_TYPE_2D;
+	depthImageInfo.format = depthFormat;
+	depthImageInfo.extent = VkExtent3D{
+		swapchain->extent.width,
+		swapchain->extent.height,
+		1
+	};
+	depthImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	depthImageInfo.mipLevels = 1;
+	depthImageInfo.arrayLayers = 1;
+	depthImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	depthImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	result = vkCreateImage(device, &depthImageInfo, nil, &depthImage->image);
+	if (result != VK_SUCCESS) {
+		printf("unable to create depth image!\n");
+		return result;
+	}
+
+	VkMemoryRequirements depthImageMemoryRequirements;
+	vkGetImageMemoryRequirements(device, depthImage->image, &depthImageMemoryRequirements);
+
+
+	VkPhysicalDeviceMemoryProperties memoryProperties;
+	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+
+	VkMemoryAllocateInfo depthImageMemoryAllocInfo = {};
+	depthImageMemoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	depthImageMemoryAllocInfo.allocationSize = depthImageMemoryRequirements.size;
+	depthImageMemoryAllocInfo.memoryTypeIndex = findMemoryType(memoryProperties, depthImageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	result = vkAllocateMemory(device, &depthImageMemoryAllocInfo, nil, &depthImage->memory);
+	if (result != VK_SUCCESS) {
+		printf("unable to alloate memory for depth image!\n");
+		return result;
+	}
+
+	vkBindImageMemory(device, depthImage->image, depthImage->memory, 0);
+
+	VkImageViewCreateInfo depthImageViewInfo = {};
+	depthImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	depthImageViewInfo.pNext = nil;
+	depthImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	depthImageViewInfo.image = depthImage->image;
+	depthImageViewInfo.format = depthFormat;
+	depthImageViewInfo.subresourceRange.baseMipLevel = 0;
+	depthImageViewInfo.subresourceRange.levelCount = 1;
+	depthImageViewInfo.subresourceRange.baseArrayLayer = 0;
+	depthImageViewInfo.subresourceRange.layerCount = 1;
+	depthImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	result = vkCreateImageView(device, &depthImageViewInfo, nil, &depthImage->imageView);
+	if (result != VK_SUCCESS) {
+		printf("unable to create depth image view!\n");
+		return result;
+	}
+
+	VkAttachmentDescription depthAttachment = {};
+	depthAttachment.flags = 0;
+	depthAttachment.format = depthFormat;
+	depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference depthAttachmentRef = {};
+	depthAttachmentRef.attachment = 1;
+	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 	VkAttachmentDescription colorAttachment = {};
 	colorAttachment.format = swapchainImageFormat;
 	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -244,20 +343,22 @@ VkResult createSwapchainAndRenderPass(
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colorAttachmentReference;
-
+	subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
 	VkSubpassDependency subpassDependency = {};
 	subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	subpassDependency.dstSubpass = 0;
-	subpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	subpassDependency.srcAccessMask = 0;
-	subpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+	VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
 
 	VkRenderPassCreateInfo renderPassCreateInfo = {};
 	renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassCreateInfo.attachmentCount = 1;
-	renderPassCreateInfo.pAttachments = &colorAttachment;
+	renderPassCreateInfo.attachmentCount = 2;
+	renderPassCreateInfo.pAttachments = attachments;
 	renderPassCreateInfo.subpassCount = 1;
 	renderPassCreateInfo.pSubpasses = &subpass;
 	renderPassCreateInfo.dependencyCount = 1;
@@ -295,7 +396,7 @@ VkResult createSwapchainAndRenderPass(
 	swapchainCreateInfo.clipped = VK_TRUE;
 	swapchainCreateInfo.oldSwapchain = swapchain->handle;
 
-	VkResult result = vkCreateSwapchainKHR(device, &swapchainCreateInfo, nil, &swapchain->handle);
+	result = vkCreateSwapchainKHR(device, &swapchainCreateInfo, nil, &swapchain->handle);
 	if (result != VK_SUCCESS) {
 		printf("unable to create swapchain!\n");
 		return result;
@@ -326,11 +427,16 @@ VkResult createSwapchainAndRenderPass(
 
 		vkCreateImageView(device, &createInfo, nil, &swapchain->imageViews[i]);
 
+		VkImageView attachments[2] = {
+			swapchain->imageViews[i],
+			depthImage->imageView
+		};
+
 		VkFramebufferCreateInfo framebufferCreateInfo = {};
 		framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebufferCreateInfo.renderPass = *renderPass;
-		framebufferCreateInfo.attachmentCount = 1;
-		framebufferCreateInfo.pAttachments = &swapchain->imageViews[i];
+		framebufferCreateInfo.attachmentCount = 2;
+		framebufferCreateInfo.pAttachments = attachments;
 		framebufferCreateInfo.width = swapchain->extent.width;
 		framebufferCreateInfo.height = swapchain->extent.height;
 		framebufferCreateInfo.layers = 1;
@@ -651,6 +757,7 @@ int main(void) {
 
 	Swapchain swapchain = {}; 
 	VkRenderPass renderPass;
+	Image depthImage = {};
 
 	if (createSwapchainAndRenderPass(
 			window,
@@ -661,7 +768,8 @@ int main(void) {
 			queueFamilyIndicesCount,
 			isUsingSameQueueForGraphicsAndPresent,
 			&renderPass,
-			&swapchain) != VK_SUCCESS
+			&swapchain,
+			&depthImage) != VK_SUCCESS
 		) 
 	{
 		printf("unable to create swapchain!\n");
@@ -719,12 +827,12 @@ int main(void) {
 	positionColorAttributeDescriptions[0].binding = 0;
 	positionColorAttributeDescriptions[0].location = 0;
 	positionColorAttributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-	positionColorAttributeDescriptions[0].offset = 0;
+	positionColorAttributeDescriptions[0].offset = offsetof(PositionColorVertex, position);
 	VkVertexInputAttributeDescription positionAttributeDescription = {};
 	positionColorAttributeDescriptions[1].binding = 0;
 	positionColorAttributeDescriptions[1].location = 1;
 	positionColorAttributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	positionColorAttributeDescriptions[1].offset = 12;
+	positionColorAttributeDescriptions[1].offset = offsetof(PositionColorVertex, color);
 
 
 	VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
@@ -750,7 +858,6 @@ int main(void) {
 	rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;
 	rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizationStateCreateInfo.lineWidth = 1.0f;
-	//TODO: use cull mode back and frontface counter clockwise when using persptive matrix and inverting y coordinate
 	rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
 	rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	//rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
@@ -820,6 +927,19 @@ int main(void) {
 		return 1;
 	}
 
+	VkPipelineDepthStencilStateCreateInfo pipelineDepthStencilInfo = {};
+	pipelineDepthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	pipelineDepthStencilInfo.depthTestEnable = VK_TRUE;
+	pipelineDepthStencilInfo.depthWriteEnable = VK_TRUE;
+	pipelineDepthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+	pipelineDepthStencilInfo.depthBoundsTestEnable = VK_FALSE;
+	pipelineDepthStencilInfo.minDepthBounds = 0.0f;
+	pipelineDepthStencilInfo.maxDepthBounds = 1.0f;
+	pipelineDepthStencilInfo.stencilTestEnable = VK_FALSE;
+	pipelineDepthStencilInfo.front = {};
+	pipelineDepthStencilInfo.back = {};
+
+
 	VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
 
 	pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -837,6 +957,7 @@ int main(void) {
 	pipelineCreateInfo.subpass = 0;
 	pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
 	pipelineCreateInfo.basePipelineIndex = -1;
+	pipelineCreateInfo.pDepthStencilState = &pipelineDepthStencilInfo;
 
 	VkPipeline graphicsPipeline;
 
@@ -858,23 +979,25 @@ int main(void) {
 
 	PositionColorVertex vertices[] = {
 		// 3D Position, 4D Color
-		{ { 0.5, -0.5, -0.5 }, { 1.0, 1.0, 1.0, 1.0 } },
-		{ { 0.5, 0.5, -0.5, }, { -0.5, 1.0, -0.5, 1.0 } },
-		{ { -0.5, 0.5, -0.5 }, { -0.5, -0.5, 1.0, 1.0 } },
-		{ { -0.5, -0.5, -0.5} , { 1.0, -0.5, -0.5, 1.0 } },
 
-		{ { 0.5, -0.5, 0.5 }, { 1.0, 1.0, 1.0, 1.0 } },
-		{ { 0.5, 0.5, 0.5, }, { -0.5, 1.0, -0.5, 1.0 } },
-		{ { -0.5, 0.5, 0.5 }, { -0.5, -0.5, 1.0, 1.0 } },
-		{ { -0.5, -0.5, 0.5} , { 1.0, -0.5, -0.5, 1.0 } },
+		{ {1.0f, 1.0f, -1.0f }, { 1.0, 1.0, 1.0, 1.0 } },
+		{ {1.0f, -1.0f, -1.0f }, { 0.0, 1.0, 0.0, 1.0 } },
+		{ {1.0f, 1.0f, 1.0f }, { 0.0, 0.0, 1.0, 1.0 } },
+		{ {1.0f, -1.0f, 1.0f }, { 1.0, 0.0, 0.0, 1.0 } },
+
+		{ {-1.0f, 1.0f, -1.0f }, { 1.0, 1.0, 1.0, 1.0 } },
+		{ {-1.0f, -1.0f, -1.0f }, { 0.0, 1.0, 0.0, 1.0 } },
+		{ {-1.0f, 1.0f, 1.0f }, { 0.0, 0.0, 1.0, 1.0 } },
+		{ {-1.0f, -1.0f, 1.0f }, { 1.0, 0.0, 0.0, 1.0 } }
+
 	};
 	u32 indices[] = {
-		0, 1, 2, 2, 3, 0,
-		4, 5, 1, 1, 0, 4,
-		1, 5, 6, 6, 2, 1,
-		3, 7, 6, 6, 2, 3,
-		0, 4, 7, 7, 3, 0,
-		4, 5, 6, 6, 7, 4
+		6, 7, 3, 3, 2, 6,
+		6, 5, 7, 6, 4, 5,
+		4, 0, 1, 1, 5, 4,
+		1, 0, 2, 2, 3, 1,
+		0, 4, 6, 6, 2, 0,
+		3, 7, 5, 5, 1, 3,
 	};
 
 	Buffer indexBuffer = createBuffer(physicalDevice, device, sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -1054,7 +1177,8 @@ int main(void) {
 				queueFamilyIndicesCount,
 				isUsingSameQueueForGraphicsAndPresent,
 				&renderPass,
-				&swapchain);
+				&swapchain,
+				&depthImage);
 			if (result != VK_SUCCESS) {
 				printf("unable to create swapchain!\n");
 				return 1;	
@@ -1084,9 +1208,14 @@ int main(void) {
 		renderPassBeginInfo.framebuffer = swapchain.framebuffers[imageIndex];
 		renderPassBeginInfo.renderArea.offset = {0, 0};
 		renderPassBeginInfo.renderArea.extent = swapchain.extent;
-		VkClearValue clearColor = {{{ 0.0f, 0.0f, 0.0f, 11.0f }}};
-		renderPassBeginInfo.clearValueCount = 1;
-		renderPassBeginInfo.pClearValues = &clearColor;
+
+		VkClearValue clearColor = {};
+		clearColor.color = { 0.0f, 0.0f, 0.0f, 1.0f };
+		VkClearValue clearDepth = {};
+		clearDepth.depthStencil = {1.0f, 0};
+		VkClearValue clearValues[2] = {clearColor, clearDepth};
+		renderPassBeginInfo.clearValueCount = 2;
+		renderPassBeginInfo.pClearValues = clearValues;
 
 		vkCmdBeginRenderPass(commandBuffers[frameCounter], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -1108,8 +1237,8 @@ int main(void) {
 
 		ModelViewProjection mvp = {};
 		//TODO: add some dynamic rotation to the model matrix
-		math::Matrix4 modelRotation = math::initYAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
-		mvp.model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 0.0f, -3.0f });
+		math::Matrix4 modelRotation = math::initXAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
+		mvp.model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 0.0f, -8.0f });
 		mvp.model = math::scaleMatrix(mvp.model, 3.0f);
 		mvp.model = mvp.model.multiply(modelRotation);
 
@@ -1192,7 +1321,8 @@ int main(void) {
 				queueFamilyIndicesCount,
 				isUsingSameQueueForGraphicsAndPresent,
 				&renderPass,
-				&swapchain);
+				&swapchain,
+				&depthImage);
 			if (result != VK_SUCCESS) {
 				printf("unable to create swapchain!\n");
 				return 1;	
