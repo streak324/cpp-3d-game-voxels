@@ -22,9 +22,10 @@
 #include "stb/stb_image.h"
 
 bool framebufferResized = false;
-struct PositionColorVertex {
+struct PositionColorTextureVertex {
 	f32 position[3];
 	f32 color[4];
+	//f32 textureCoordinates[2];
 };
 const u32 MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -696,6 +697,10 @@ int main(void) {
 		return 1;
 	}
 
+
+	VkPhysicalDeviceProperties physicalDeviceProperties;
+	vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+
 	VkPhysicalDeviceFeatures deviceFeatures;
 	vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
@@ -897,25 +902,33 @@ int main(void) {
 
 	VkVertexInputBindingDescription bindingDescription = {};
 	bindingDescription.binding = 0;
-	bindingDescription.stride = sizeof(PositionColorVertex);
+	bindingDescription.stride = sizeof(PositionColorTextureVertex);
 	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-	VkVertexInputAttributeDescription positionColorAttributeDescriptions[2] = {};
+	VkVertexInputAttributeDescription positionColorAttributeDescriptions[3] = {};
 	positionColorAttributeDescriptions[0].binding = 0;
 	positionColorAttributeDescriptions[0].location = 0;
 	positionColorAttributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-	positionColorAttributeDescriptions[0].offset = offsetof(PositionColorVertex, position);
+	positionColorAttributeDescriptions[0].offset = offsetof(PositionColorTextureVertex, position);
 	VkVertexInputAttributeDescription positionAttributeDescription = {};
 	positionColorAttributeDescriptions[1].binding = 0;
 	positionColorAttributeDescriptions[1].location = 1;
 	positionColorAttributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	positionColorAttributeDescriptions[1].offset = offsetof(PositionColorVertex, color);
+	positionColorAttributeDescriptions[1].offset = offsetof(PositionColorTextureVertex, color);
+
+	//TODO: ADD TEXTURES
+	//VkVertexInputAttributeDescription positionAttributeDescription = {};
+	//positionColorAttributeDescriptions[2].binding = 0;
+	//positionColorAttributeDescriptions[2].location = 2;
+	//positionColorAttributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+	//positionColorAttributeDescriptions[2].offset = offsetof(PositionColorTextureVertex, textureCoordinates);
 
 
 	VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
 	vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
 	vertexInputStateCreateInfo.pVertexBindingDescriptions = &bindingDescription;
+	//TODO: set this to 3
 	vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 2;
 	vertexInputStateCreateInfo.pVertexAttributeDescriptions = positionColorAttributeDescriptions;
 
@@ -982,12 +995,23 @@ int main(void) {
 	uniformBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 	uniformBufferLayoutBinding.pImmutableSamplers = nil;
 
+
+	VkDescriptorSetLayoutBinding samplerLayoutBinding = {};
+	samplerLayoutBinding.binding = 1;
+	samplerLayoutBinding.descriptorCount = 1;
+	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerLayoutBinding.pImmutableSamplers = nil;
+	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	VkDescriptorSetLayoutBinding bindings [2] = { uniformBufferLayoutBinding, samplerLayoutBinding };
+
 	VkDescriptorSetLayoutCreateInfo layoutInfo = {};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = 1;
-	layoutInfo.pBindings = &uniformBufferLayoutBinding;
+	layoutInfo.bindingCount = 2;
+	layoutInfo.pBindings = bindings;
 
 	VkDescriptorSetLayout uniformBufferDescriptorSetLayout;
+
 	vkCheck(vkCreateDescriptorSetLayout(device, &layoutInfo, nil, &uniformBufferDescriptorSetLayout));
 
 	VkPipelineLayout pipelineLayout;
@@ -1054,7 +1078,7 @@ int main(void) {
 		return 1;
 	}
 
-	PositionColorVertex cubeVertices[] = {
+	PositionColorTextureVertex cubeVertices[] = {
 		// 3D Position, 4D Color
 
 		{ {1.0f, 1.0f, -1.0f }, { 1.0, 1.0, 1.0, 1.0 } },
@@ -1253,16 +1277,52 @@ int main(void) {
 		endSingleTimeCommands(device, copyCommand, commandPool, graphicsQueue);
 
 		transitionImageLayout(textureImage.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, device, commandPool, graphicsQueue);
+
+		VkImageViewCreateInfo viewInfo = {};
+		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		viewInfo.image = textureImage.image;
+		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+		viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		viewInfo.subresourceRange.baseMipLevel = 0;
+		viewInfo.subresourceRange.levelCount = 1;
+		viewInfo.subresourceRange.baseArrayLayer = 0;
+		viewInfo.subresourceRange.layerCount = 1;
+		vkCheck(vkCreateImageView(device, &viewInfo, nil, &textureImage.imageView));
 	}
 
-	VkDescriptorPoolSize poolSize = {};
-	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSize.descriptorCount = MAX_FRAMES_IN_FLIGHT;
+	VkSamplerCreateInfo linearFilterSamplerInfo = {};
+	linearFilterSamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	linearFilterSamplerInfo.magFilter = VK_FILTER_LINEAR; //TODO: make it an option to specify which filter to use
+	linearFilterSamplerInfo.minFilter = VK_FILTER_LINEAR;
+	linearFilterSamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	linearFilterSamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	linearFilterSamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	linearFilterSamplerInfo.anisotropyEnable = VK_TRUE;
+	linearFilterSamplerInfo.maxAnisotropy = physicalDeviceProperties.limits.maxSamplerAnisotropy;
+	linearFilterSamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	linearFilterSamplerInfo.unnormalizedCoordinates = VK_FALSE;
+	linearFilterSamplerInfo.compareEnable = VK_FALSE;
+	linearFilterSamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	linearFilterSamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	linearFilterSamplerInfo.mipLodBias = 0.0f;
+	linearFilterSamplerInfo.minLod = 0.0f;
+	linearFilterSamplerInfo.maxLod = 0.0f;
+	
+	VkSampler linearFilterSampler = {};
+	vkCheck(vkCreateSampler(device, &linearFilterSamplerInfo, nil, &linearFilterSampler));
+
+
+	VkDescriptorPoolSize poolSizes [2] = {};
+	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSizes[0].descriptorCount = MAX_FRAMES_IN_FLIGHT;
+	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	poolSizes[1].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 
 	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
 	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	descriptorPoolInfo.poolSizeCount = 1;
-	descriptorPoolInfo.pPoolSizes = &poolSize;
+	descriptorPoolInfo.poolSizeCount = 2;
+	descriptorPoolInfo.pPoolSizes = poolSizes;
 	descriptorPoolInfo.maxSets = MAX_FRAMES_IN_FLIGHT;
 
 	VkDescriptorPool descriptorPool;
@@ -1316,7 +1376,41 @@ int main(void) {
 			printf("unable to create semaphore and fences!\n");
 			return 1;
 		}
+
+		VkDescriptorBufferInfo bufferInfo = {};
+		bufferInfo.buffer = uniformBuffers[i].buffer;
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(ModelViewProjection);
+
+		VkWriteDescriptorSet descriptorWrite = {};
+		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite.dstSet = descriptorSetFrames[i];
+		descriptorWrite.dstBinding = 0;
+		descriptorWrite.dstArrayElement = 0;
+		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrite.descriptorCount = 1;
+		descriptorWrite.pBufferInfo = &bufferInfo;
+		descriptorWrite.pImageInfo = nil;
+		descriptorWrite.pTexelBufferView = nil;
+
+		
+		//VkDescriptorImageInfo imageInfo = {};
+		//imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		//imageInfo.imageView = textureImage.imageView;
+		//imageInfo.sampler = linearFilterSampler;
+
+		//descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		//descriptorWrites[1].dstSet = descriptorSetFrames[i];
+		//descriptorWrites[1].dstBinding = 1;
+		//descriptorWrites[1].dstArrayElement = 0;
+		//descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		//descriptorWrites[1].descriptorCount = 1;
+		//descriptorWrites[1].pImageInfo = &imageInfo;
+
+		//TODO: update this to 2
+		vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nil);
 	}
+
 
 	u64 frameCounter = -1;
 	/* Loop until the user closes the window */
@@ -1398,7 +1492,6 @@ int main(void) {
 		vkCmdSetScissor(commandBuffers[frameCounter], 0, 1, &scissor);
 
 		ModelViewProjection mvp = {};
-		//TODO: add some dynamic rotation to the model matrix
 		math::Matrix4 modelRotation = math::initXAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
 		mvp.model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 0.0f, -8.0f });
 		mvp.model = math::scaleMatrix(mvp.model, 3.0f);
@@ -1418,24 +1511,6 @@ int main(void) {
 		vkCmdBindIndexBuffer(commandBuffers[frameCounter], indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
 		memcpy(uniformBuffers[frameCounter].mappedData, &mvp, sizeof(mvp));
-
-		VkDescriptorBufferInfo bufferInfo = {};
-		bufferInfo.buffer = uniformBuffers[frameCounter].buffer;
-		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(ModelViewProjection);
-
-		VkWriteDescriptorSet descriptorWrite = {};
-		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrite.dstSet = descriptorSetFrames[frameCounter];
-		descriptorWrite.dstBinding = 0;
-		descriptorWrite.dstArrayElement = 0;
-		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrite.descriptorCount = 1;
-		descriptorWrite.pBufferInfo = &bufferInfo;
-		descriptorWrite.pImageInfo = nil;
-		descriptorWrite.pTexelBufferView = nil;
-
-		vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nil);
 
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSetFrames[frameCounter], 0, nil);
 		vkCmdDrawIndexed(commandBuffers[frameCounter], sizeof(indices)/sizeof(indices[0]), 1, 0, 0, 0);
