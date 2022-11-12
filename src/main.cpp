@@ -808,60 +808,30 @@ int main(void) {
 
 	VkPhysicalDeviceFeatures2 desiredDeviceFeatures = {};	
 	desiredDeviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+	#ifndef NDEBUG
 	desiredDeviceFeatures.features.robustBufferAccess = 1;
-	desiredDeviceFeatures.features.fullDrawIndexUint32 = 1;
+	#endif
 	desiredDeviceFeatures.features.imageCubeArray = 1;
 	desiredDeviceFeatures.features.independentBlend = 1;
-	desiredDeviceFeatures.features.geometryShader = 1;
-	desiredDeviceFeatures.features.tessellationShader = 1;
-	desiredDeviceFeatures.features.sampleRateShading = 1;
 	desiredDeviceFeatures.features.dualSrcBlend = 1;
 	desiredDeviceFeatures.features.logicOp = 1;
-	desiredDeviceFeatures.features.multiDrawIndirect = 1;
-	desiredDeviceFeatures.features.drawIndirectFirstInstance = 1;
 	desiredDeviceFeatures.features.depthClamp = 1;
 	desiredDeviceFeatures.features.depthBiasClamp = 1;
 	desiredDeviceFeatures.features.fillModeNonSolid = 1;
 	desiredDeviceFeatures.features.depthBounds = 1;
+	#ifndef NDEBUG
 	desiredDeviceFeatures.features.wideLines = 1;
 	desiredDeviceFeatures.features.largePoints = 1;
-	desiredDeviceFeatures.features.alphaToOne = 1;
-	desiredDeviceFeatures.features.multiViewport = 1;
+	#endif
 	desiredDeviceFeatures.features.samplerAnisotropy = 1;
-	desiredDeviceFeatures.features.textureCompressionETC2 = 0;
-	desiredDeviceFeatures.features.textureCompressionASTC_LDR = 0;
-	desiredDeviceFeatures.features.textureCompressionBC = 1;
-	desiredDeviceFeatures.features.occlusionQueryPrecise = 1;
-	desiredDeviceFeatures.features.pipelineStatisticsQuery = 1;
 	desiredDeviceFeatures.features.vertexPipelineStoresAndAtomics = 1;
 	desiredDeviceFeatures.features.fragmentStoresAndAtomics = 1;
-	desiredDeviceFeatures.features.shaderTessellationAndGeometryPointSize = 1;
-	desiredDeviceFeatures.features.shaderImageGatherExtended = 1;
-	desiredDeviceFeatures.features.shaderStorageImageExtendedFormats = 1;
-	desiredDeviceFeatures.features.shaderStorageImageMultisample = 1;
 	desiredDeviceFeatures.features.shaderStorageImageReadWithoutFormat = 1;
 	desiredDeviceFeatures.features.shaderStorageImageWriteWithoutFormat = 1;
 	desiredDeviceFeatures.features.shaderUniformBufferArrayDynamicIndexing = 1;
 	desiredDeviceFeatures.features.shaderSampledImageArrayDynamicIndexing = 1;
 	desiredDeviceFeatures.features.shaderStorageBufferArrayDynamicIndexing = 1;
 	desiredDeviceFeatures.features.shaderStorageImageArrayDynamicIndexing = 1;
-	desiredDeviceFeatures.features.shaderClipDistance = 1;
-	desiredDeviceFeatures.features.shaderCullDistance = 1;
-	desiredDeviceFeatures.features.shaderFloat64 = 1;
-	desiredDeviceFeatures.features.shaderInt64 = 1;
-	desiredDeviceFeatures.features.shaderInt16 = 1;
-	desiredDeviceFeatures.features.shaderResourceResidency = 1;
-	desiredDeviceFeatures.features.shaderResourceMinLod = 1;
-	desiredDeviceFeatures.features.sparseBinding = 1;
-	desiredDeviceFeatures.features.sparseResidencyBuffer = 1;
-	desiredDeviceFeatures.features.sparseResidencyImage2D = 1;
-	desiredDeviceFeatures.features.sparseResidencyImage3D = 1;
-	desiredDeviceFeatures.features.sparseResidency2Samples = 1;
-	desiredDeviceFeatures.features.sparseResidency4Samples = 1;
-	desiredDeviceFeatures.features.sparseResidency8Samples = 1;
-	desiredDeviceFeatures.features.sparseResidency16Samples = 1;
-	desiredDeviceFeatures.features.sparseResidencyAliased = 1;
-	desiredDeviceFeatures.features.variableMultisampleRate = 1;
 	desiredDeviceFeatures.features.inheritedQueries = 1;
 
 	VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParametersFeatures = {};
