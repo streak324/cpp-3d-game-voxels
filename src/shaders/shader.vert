@@ -9,7 +9,6 @@ layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec2 fragTexCoord;
 
 layout (set=0, binding = 0) uniform ViewProjection {
-	mat4 model;
 	mat4 view;
 	mat4 projection;
 } vp;
@@ -23,7 +22,7 @@ layout (std140,set = 1, binding = 0) readonly buffer ObjectBuffer{
 } objectBuffer;
 
 void main() {
-	gl_Position = vp.projection * vp.view * vp.model * vec4(inPosition, 1.0);
+	gl_Position = vp.projection * vp.view * objectBuffer.objects[gl_BaseInstance].model * vec4(inPosition, 1.0);
 	fragColor = inColor;
 	fragTexCoord = inTexCoord;
 }

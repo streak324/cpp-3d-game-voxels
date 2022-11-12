@@ -46,9 +46,7 @@ struct Buffer {
 	void * mappedData;
 };
 
-struct GPUViewProjectionData {
-	//TODO: remove model
-	math::Matrix4 model;
+struct UniformBufferData {
 	math::Matrix4 view;
 	math::Matrix4 projection;
 };
@@ -708,8 +706,9 @@ int main(void) {
 	VkPhysicalDeviceProperties physicalDeviceProperties;
 	vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
 
-	VkPhysicalDeviceFeatures deviceFeatures;
-	vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
+	VkPhysicalDeviceFeatures2 deviceFeatures = {};
+	deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+	vkGetPhysicalDeviceFeatures2(physicalDevice, &deviceFeatures);
 
 	u32	queueFamilyCount = 0;
 
@@ -807,11 +806,76 @@ int main(void) {
 		}
 	}
 
+	VkPhysicalDeviceFeatures2 desiredDeviceFeatures = {};	
+	desiredDeviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+	desiredDeviceFeatures.features.robustBufferAccess = 1;
+	desiredDeviceFeatures.features.fullDrawIndexUint32 = 1;
+	desiredDeviceFeatures.features.imageCubeArray = 1;
+	desiredDeviceFeatures.features.independentBlend = 1;
+	desiredDeviceFeatures.features.geometryShader = 1;
+	desiredDeviceFeatures.features.tessellationShader = 1;
+	desiredDeviceFeatures.features.sampleRateShading = 1;
+	desiredDeviceFeatures.features.dualSrcBlend = 1;
+	desiredDeviceFeatures.features.logicOp = 1;
+	desiredDeviceFeatures.features.multiDrawIndirect = 1;
+	desiredDeviceFeatures.features.drawIndirectFirstInstance = 1;
+	desiredDeviceFeatures.features.depthClamp = 1;
+	desiredDeviceFeatures.features.depthBiasClamp = 1;
+	desiredDeviceFeatures.features.fillModeNonSolid = 1;
+	desiredDeviceFeatures.features.depthBounds = 1;
+	desiredDeviceFeatures.features.wideLines = 1;
+	desiredDeviceFeatures.features.largePoints = 1;
+	desiredDeviceFeatures.features.alphaToOne = 1;
+	desiredDeviceFeatures.features.multiViewport = 1;
+	desiredDeviceFeatures.features.samplerAnisotropy = 1;
+	desiredDeviceFeatures.features.textureCompressionETC2 = 0;
+	desiredDeviceFeatures.features.textureCompressionASTC_LDR = 0;
+	desiredDeviceFeatures.features.textureCompressionBC = 1;
+	desiredDeviceFeatures.features.occlusionQueryPrecise = 1;
+	desiredDeviceFeatures.features.pipelineStatisticsQuery = 1;
+	desiredDeviceFeatures.features.vertexPipelineStoresAndAtomics = 1;
+	desiredDeviceFeatures.features.fragmentStoresAndAtomics = 1;
+	desiredDeviceFeatures.features.shaderTessellationAndGeometryPointSize = 1;
+	desiredDeviceFeatures.features.shaderImageGatherExtended = 1;
+	desiredDeviceFeatures.features.shaderStorageImageExtendedFormats = 1;
+	desiredDeviceFeatures.features.shaderStorageImageMultisample = 1;
+	desiredDeviceFeatures.features.shaderStorageImageReadWithoutFormat = 1;
+	desiredDeviceFeatures.features.shaderStorageImageWriteWithoutFormat = 1;
+	desiredDeviceFeatures.features.shaderUniformBufferArrayDynamicIndexing = 1;
+	desiredDeviceFeatures.features.shaderSampledImageArrayDynamicIndexing = 1;
+	desiredDeviceFeatures.features.shaderStorageBufferArrayDynamicIndexing = 1;
+	desiredDeviceFeatures.features.shaderStorageImageArrayDynamicIndexing = 1;
+	desiredDeviceFeatures.features.shaderClipDistance = 1;
+	desiredDeviceFeatures.features.shaderCullDistance = 1;
+	desiredDeviceFeatures.features.shaderFloat64 = 1;
+	desiredDeviceFeatures.features.shaderInt64 = 1;
+	desiredDeviceFeatures.features.shaderInt16 = 1;
+	desiredDeviceFeatures.features.shaderResourceResidency = 1;
+	desiredDeviceFeatures.features.shaderResourceMinLod = 1;
+	desiredDeviceFeatures.features.sparseBinding = 1;
+	desiredDeviceFeatures.features.sparseResidencyBuffer = 1;
+	desiredDeviceFeatures.features.sparseResidencyImage2D = 1;
+	desiredDeviceFeatures.features.sparseResidencyImage3D = 1;
+	desiredDeviceFeatures.features.sparseResidency2Samples = 1;
+	desiredDeviceFeatures.features.sparseResidency4Samples = 1;
+	desiredDeviceFeatures.features.sparseResidency8Samples = 1;
+	desiredDeviceFeatures.features.sparseResidency16Samples = 1;
+	desiredDeviceFeatures.features.sparseResidencyAliased = 1;
+	desiredDeviceFeatures.features.variableMultisampleRate = 1;
+	desiredDeviceFeatures.features.inheritedQueries = 1;
+
+	VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParametersFeatures = {};
+	shaderDrawParametersFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
+	shaderDrawParametersFeatures.pNext = nil;
+	shaderDrawParametersFeatures.shaderDrawParameters = VK_TRUE;
+	desiredDeviceFeatures.pNext = &shaderDrawParametersFeatures;
+
 	VkDeviceCreateInfo deviceCreateInfo = {};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	deviceCreateInfo.pQueueCreateInfos = queueCreateInfos;
 	deviceCreateInfo.queueCreateInfoCount = queueCreateInfoCount;
-	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
+	deviceCreateInfo.pEnabledFeatures = nil;
+	deviceCreateInfo.pNext = &desiredDeviceFeatures;
 	deviceCreateInfo.enabledExtensionCount = requiredDeviceExtensionsCount;
 	deviceCreateInfo.ppEnabledExtensionNames = requiredDeviceExtensions;
 	deviceCreateInfo.enabledLayerCount = 0;
@@ -1263,9 +1327,9 @@ int main(void) {
 	Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
 	Buffer objectBuffers[MAX_FRAMES_IN_FLIGHT];
 	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		uniformBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, sizeof(GPUViewProjectionData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		uniformBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, sizeof(UniformBufferData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		vkCheck(uniformBuffers[i].createResult);
-		vkMapMemory(device, uniformBuffers[i].memory, 0, sizeof(GPUViewProjectionData), 0, &uniformBuffers[i].mappedData);
+		vkMapMemory(device, uniformBuffers[i].memory, 0, sizeof(UniformBufferData), 0, &uniformBuffers[i].mappedData);
 
 		objectBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, MAX_OBJECTS*sizeof(GPUObjectData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		vkCheck(objectBuffers[i].createResult);
@@ -1406,7 +1470,7 @@ int main(void) {
 	vkCheck(vkCreateDescriptorPool(device, &descriptorPoolInfo, nil, &descriptorPool));
 
 
-	VkDescriptorSet viewProjectionDataDescriptorSets[MAX_FRAMES_IN_FLIGHT];
+	VkDescriptorSet uniformBufferDescriptorSets[MAX_FRAMES_IN_FLIGHT];
 	VkDescriptorSet objectDataDescriptorSets[MAX_FRAMES_IN_FLIGHT];
 	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		{
@@ -1415,7 +1479,7 @@ int main(void) {
 			descriptorSetAllocateInfo.descriptorPool = descriptorPool;
 			descriptorSetAllocateInfo.descriptorSetCount = 1;
 			descriptorSetAllocateInfo.pSetLayouts = &uniformBufferDescriptorSetLayout;;
-			vkCheck(vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &viewProjectionDataDescriptorSets[i]));
+			vkCheck(vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &uniformBufferDescriptorSets[i]));
 		}
 		{
 			VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
@@ -1429,11 +1493,11 @@ int main(void) {
 		VkDescriptorBufferInfo bufferInfo = {};
 		bufferInfo.buffer = uniformBuffers[i].buffer;
 		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(GPUViewProjectionData);
+		bufferInfo.range = sizeof(UniformBufferData);
 
 		VkWriteDescriptorSet descriptorWrites[3] = {};
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].dstSet = viewProjectionDataDescriptorSets[i];
+		descriptorWrites[0].dstSet = uniformBufferDescriptorSets[i];
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1448,7 +1512,7 @@ int main(void) {
 		imageInfo.sampler = linearFilterSampler;
 
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[1].dstSet = viewProjectionDataDescriptorSets[i];
+		descriptorWrites[1].dstSet = uniformBufferDescriptorSets[i];
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1587,27 +1651,34 @@ int main(void) {
 		scissor.extent = swapchain.extent;
 		vkCmdSetScissor(commandBuffers[frameCounter], 0, 1, &scissor);
 
-		GPUViewProjectionData mvp = {};
-		math::Matrix4 modelRotation = math::initYAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
-		mvp.model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 0.0f, -8.0f });
-		mvp.model = math::scaleMatrix(mvp.model, 5.0f);
-		mvp.model = mvp.model.multiply(modelRotation);
-
+		UniformBufferData ub = {};
 		f32 scale = 2.0f;
 
 		f32 camX = cosf(glfwGetTime());
 		f32 camZ = sinf(glfwGetTime());
 
-		mvp.view = math::initIdentityMatrix();//math::lookAt(math::Vector3{1.0f, 0.0f, 3.0f}, math::Vector3{0.0f, 0.0f, -2.0f}, math::Vector3{0.0f, 1.0f, 0.0f});
-		mvp.projection = math::initPerspectiveMatrix((f32)swapchain.extent.width/(f32)swapchain.extent.height, 1.0f, 100.0f, 0.1f);
+		ub.view = math::initIdentityMatrix();//math::lookAt(math::Vector3{1.0f, 0.0f, 3.0f}, math::Vector3{0.0f, 0.0f, -2.0f}, math::Vector3{0.0f, 1.0f, 0.0f});
+		ub.projection = math::initPerspectiveMatrix((f32)swapchain.extent.width/(f32)swapchain.extent.height, 1.0f, 100.0f, 0.1f);
 
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &vertexBuffer.buffer, offsets);
 
-		memcpy(uniformBuffers[frameCounter].mappedData, &mvp, sizeof(mvp));
+		memcpy(uniformBuffers[frameCounter].mappedData, &ub, sizeof(ub));
 
-		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &viewProjectionDataDescriptorSets[frameCounter], 0, nil);
+		GPUObjectData objects[2];
+		objects[0].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 10.0f, 0.0f, -8.0f });
+		objects[0].model = math::scaleMatrix(objects[0].model, 5.0f);
+		objects[0].model = objects[0].model.multiply(math::initYAxisRotationMatrix(fmodf(glfwGetTime(), TAU32)));
+
+		objects[1].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ -10.0f, 0.0f, -8.0f });
+		objects[1].model = math::scaleMatrix(objects[1].model, 5.0f);
+		objects[1].model = objects[1].model.multiply(math::initXAxisRotationMatrix(fmodf(glfwGetTime(), TAU32)));
+		memcpy(objectBuffers[frameCounter].mappedData, &objects, sizeof(objects));
+
+		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &uniformBufferDescriptorSets[frameCounter], 0, nil);
+		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);
 		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 0);
+		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 1);
 
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
 
