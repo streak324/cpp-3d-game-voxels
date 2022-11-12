@@ -20,5 +20,5 @@ typedef u32 bool32;
 #define min(a, b) (a < b ? a : b)
 #define max(a, b) (a > b ? a : b)
 
-void assert(u8 b);
+void _assert(u8 b);
 void panic();

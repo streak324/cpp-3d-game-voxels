@@ -1,6 +1,6 @@
 #include "common.h"
 
-void assert(u8 b) {
+void _assert(u8 b) {
 	#ifndef NDEBUG
 		if (!b) {
 			*((char*) 0) = 0;

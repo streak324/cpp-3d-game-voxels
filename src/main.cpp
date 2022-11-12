@@ -46,14 +46,21 @@ struct Buffer {
 	void * mappedData;
 };
 
-struct ModelViewProjection {
+struct GPUViewProjectionData {
+	//TODO: remove model
 	math::Matrix4 model;
 	math::Matrix4 view;
 	math::Matrix4 projection;
 };
 
+struct GPUObjectData {
+	math::Matrix4 model;
+};
+
+const int MAX_OBJECTS = 10000;
+
 inline void vkCheck(VkResult result) {
-	assert(result == VK_SUCCESS);
+	_assert(result == VK_SUCCESS);
 }
 
 void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
@@ -568,7 +575,7 @@ int main(void) {
 		//mac os thing
 		//VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
 	};
-	assert(glfwExtensionCount + requiredExtensionCount < requiredExtensionCapacity);
+	_assert(glfwExtensionCount + requiredExtensionCount < requiredExtensionCapacity);
 	for (u32 i=0; i < glfwExtensionCount; i++) {
 		requiredExtensions[i+requiredExtensionCount] = glfwExtensions[i];
 	}
@@ -1000,25 +1007,42 @@ int main(void) {
 	samplerLayoutBinding.pImmutableSamplers = nil;
 	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	VkDescriptorSetLayoutBinding bindings [2] = { uniformBufferLayoutBinding, samplerLayoutBinding };
+	VkDescriptorSetLayoutBinding bindings [] = { uniformBufferLayoutBinding, samplerLayoutBinding };
 
 	VkDescriptorSetLayoutCreateInfo layoutInfo = {};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = 2;
+	layoutInfo.bindingCount = sizeof(bindings)/sizeof(bindings[0]);
 	layoutInfo.pBindings = bindings;
 
 	VkDescriptorSetLayout uniformBufferDescriptorSetLayout;
 
 	vkCheck(vkCreateDescriptorSetLayout(device, &layoutInfo, nil, &uniformBufferDescriptorSetLayout));
 
+	VkDescriptorSetLayoutBinding objectDataBinding = {};
+	objectDataBinding.binding = 0;
+	objectDataBinding.descriptorCount = 1;
+	objectDataBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	objectDataBinding.pImmutableSamplers = nil;
+	objectDataBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayoutCreateInfo objectDataLayoutInfo = {};
+	objectDataLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	objectDataLayoutInfo.bindingCount = 1;
+	objectDataLayoutInfo.flags = 0;
+	objectDataLayoutInfo.pNext = nil;
+	objectDataLayoutInfo.pBindings = &objectDataBinding;
+
+	VkDescriptorSetLayout objectDataDescriptorSetLayout;
+	vkCheck(vkCreateDescriptorSetLayout(device, &objectDataLayoutInfo, nil, &objectDataDescriptorSetLayout));
+
+	VkDescriptorSetLayout setLayouts[] = { uniformBufferDescriptorSetLayout, objectDataDescriptorSetLayout };
+
 	VkPipelineLayout pipelineLayout;
 
 	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
 	pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutCreateInfo.setLayoutCount = 1;
-	pipelineLayoutCreateInfo.pSetLayouts = &uniformBufferDescriptorSetLayout;
-
-	pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutCreateInfo.setLayoutCount = sizeof(setLayouts)/sizeof(setLayouts[0]);
+	pipelineLayoutCreateInfo.pSetLayouts = setLayouts;
 
 	if (vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nil, &pipelineLayout) != VK_SUCCESS) {
 		printf("unable to create pipeline layout!\n");
@@ -1237,9 +1261,15 @@ int main(void) {
 	}
 
 	Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
+	Buffer objectBuffers[MAX_FRAMES_IN_FLIGHT];
 	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		uniformBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, sizeof(ModelViewProjection), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		vkMapMemory(device, uniformBuffers[i].memory, 0, sizeof(ModelViewProjection), 0, &uniformBuffers[i].mappedData);
+		uniformBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, sizeof(GPUViewProjectionData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		vkCheck(uniformBuffers[i].createResult);
+		vkMapMemory(device, uniformBuffers[i].memory, 0, sizeof(GPUViewProjectionData), 0, &uniformBuffers[i].mappedData);
+
+		objectBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, MAX_OBJECTS*sizeof(GPUObjectData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		vkCheck(objectBuffers[i].createResult);
+		vkMapMemory(device, objectBuffers[i].memory, 0, MAX_OBJECTS*sizeof(GPUObjectData), 0, &objectBuffers[i].mappedData);
 	}
 
 	Image textureImage;
@@ -1358,34 +1388,88 @@ int main(void) {
 	vkCheck(vkCreateSampler(device, &linearFilterSamplerInfo, nil, &linearFilterSampler));
 
 
-	VkDescriptorPoolSize poolSizes [2] = {};
+	VkDescriptorPoolSize poolSizes [3] = {};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	poolSizes[1].descriptorCount = MAX_FRAMES_IN_FLIGHT;
+	poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	poolSizes[2].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 
 	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
 	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	descriptorPoolInfo.poolSizeCount = 2;
+	descriptorPoolInfo.poolSizeCount = sizeof(poolSizes)/sizeof(poolSizes[0]);
 	descriptorPoolInfo.pPoolSizes = poolSizes;
-	descriptorPoolInfo.maxSets = MAX_FRAMES_IN_FLIGHT;
+	descriptorPoolInfo.maxSets = 4;//2 for view projection data (uniform buffer), 2 for object data (storage buffer)
 
 	VkDescriptorPool descriptorPool;
 	vkCheck(vkCreateDescriptorPool(device, &descriptorPoolInfo, nil, &descriptorPool));
 
-	VkDescriptorSetLayout descriptorSetLayoutFrames[MAX_FRAMES_IN_FLIGHT];
+
+	VkDescriptorSet viewProjectionDataDescriptorSets[MAX_FRAMES_IN_FLIGHT];
+	VkDescriptorSet objectDataDescriptorSets[MAX_FRAMES_IN_FLIGHT];
 	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		descriptorSetLayoutFrames[i] = uniformBufferDescriptorSetLayout;
+		{
+			VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
+			descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+			descriptorSetAllocateInfo.descriptorPool = descriptorPool;
+			descriptorSetAllocateInfo.descriptorSetCount = 1;
+			descriptorSetAllocateInfo.pSetLayouts = &uniformBufferDescriptorSetLayout;;
+			vkCheck(vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &viewProjectionDataDescriptorSets[i]));
+		}
+		{
+			VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
+			descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+			descriptorSetAllocateInfo.descriptorPool = descriptorPool;
+			descriptorSetAllocateInfo.descriptorSetCount = 1;
+			descriptorSetAllocateInfo.pSetLayouts = &objectDataDescriptorSetLayout;
+			vkCheck(vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &objectDataDescriptorSets[i]));
+		}
+
+		VkDescriptorBufferInfo bufferInfo = {};
+		bufferInfo.buffer = uniformBuffers[i].buffer;
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(GPUViewProjectionData);
+
+		VkWriteDescriptorSet descriptorWrites[3] = {};
+		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[0].dstSet = viewProjectionDataDescriptorSets[i];
+		descriptorWrites[0].dstBinding = 0;
+		descriptorWrites[0].dstArrayElement = 0;
+		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrites[0].descriptorCount = 1;
+		descriptorWrites[0].pBufferInfo = &bufferInfo;
+		descriptorWrites[0].pImageInfo = nil;
+		descriptorWrites[0].pTexelBufferView = nil;
+
+		VkDescriptorImageInfo imageInfo = {};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = textureImage.imageView;
+		imageInfo.sampler = linearFilterSampler;
+
+		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[1].dstSet = viewProjectionDataDescriptorSets[i];
+		descriptorWrites[1].dstBinding = 1;
+		descriptorWrites[1].dstArrayElement = 0;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[1].descriptorCount = 1;
+		descriptorWrites[1].pImageInfo = &imageInfo;
+
+		VkDescriptorBufferInfo objectBufferInfo = {};
+		objectBufferInfo.buffer = objectBuffers[i].buffer;
+		objectBufferInfo.offset = 0;
+		objectBufferInfo.range = sizeof(GPUObjectData) * MAX_OBJECTS;
+		
+		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[2].dstSet = objectDataDescriptorSets[i];
+		descriptorWrites[2].dstBinding = 0;
+		descriptorWrites[2].dstArrayElement = 0;
+		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		descriptorWrites[2].descriptorCount = 1;
+		descriptorWrites[2].pBufferInfo = &objectBufferInfo;
+
+		vkUpdateDescriptorSets(device, sizeof(descriptorWrites)/sizeof(descriptorWrites[0]), descriptorWrites, 0, nil);
 	}
-	VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
-	descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	descriptorSetAllocateInfo.descriptorPool = descriptorPool;
-	descriptorSetAllocateInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
-	descriptorSetAllocateInfo.pSetLayouts = descriptorSetLayoutFrames;
-
-	VkDescriptorSet descriptorSetFrames[MAX_FRAMES_IN_FLIGHT];
-
-	vkCheck(vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, descriptorSetFrames));
 
 	VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT] = {};
 	VkCommandBufferAllocateInfo commandBufferAllocInfo = {};
@@ -1397,9 +1481,6 @@ int main(void) {
 		printf("unable to allocate command buffers\n");
 		return 1;
 	}
-
-	/* Make the window's context current */
-	glfwMakeContextCurrent(window);
 
 	VkSemaphore imageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT] = {};
 	VkSemaphore renderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT] = {};
@@ -1421,39 +1502,11 @@ int main(void) {
 			printf("unable to create semaphore and fences!\n");
 			return 1;
 		}
-
-		VkDescriptorBufferInfo bufferInfo = {};
-		bufferInfo.buffer = uniformBuffers[i].buffer;
-		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(ModelViewProjection);
-
-		VkWriteDescriptorSet descriptorWrites[2] = {};
-		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].dstSet = descriptorSetFrames[i];
-		descriptorWrites[0].dstBinding = 0;
-		descriptorWrites[0].dstArrayElement = 0;
-		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrites[0].descriptorCount = 1;
-		descriptorWrites[0].pBufferInfo = &bufferInfo;
-		descriptorWrites[0].pImageInfo = nil;
-		descriptorWrites[0].pTexelBufferView = nil;
-
-		VkDescriptorImageInfo imageInfo = {};
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = textureImage.imageView;
-		imageInfo.sampler = linearFilterSampler;
-
-		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[1].dstSet = descriptorSetFrames[i];
-		descriptorWrites[1].dstBinding = 1;
-		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pImageInfo = &imageInfo;
-
-		vkUpdateDescriptorSets(device, 2, descriptorWrites, 0, nil);
 	}
 
+
+	/* Make the window's context current */
+	glfwMakeContextCurrent(window);
 
 	u64 frameCounter = -1;
 	/* Loop until the user closes the window */
@@ -1534,10 +1587,10 @@ int main(void) {
 		scissor.extent = swapchain.extent;
 		vkCmdSetScissor(commandBuffers[frameCounter], 0, 1, &scissor);
 
-		ModelViewProjection mvp = {};
+		GPUViewProjectionData mvp = {};
 		math::Matrix4 modelRotation = math::initYAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
 		mvp.model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 0.0f, -8.0f });
-		mvp.model = math::scaleMatrix(mvp.model, 3.0f);
+		mvp.model = math::scaleMatrix(mvp.model, 5.0f);
 		mvp.model = mvp.model.multiply(modelRotation);
 
 		f32 scale = 2.0f;
@@ -1553,7 +1606,7 @@ int main(void) {
 
 		memcpy(uniformBuffers[frameCounter].mappedData, &mvp, sizeof(mvp));
 
-		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSetFrames[frameCounter], 0, nil);
+		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &viewProjectionDataDescriptorSets[frameCounter], 0, nil);
 		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 0);
 
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
