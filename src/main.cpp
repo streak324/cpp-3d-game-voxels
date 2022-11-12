@@ -1647,9 +1647,7 @@ int main(void) {
 
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &uniformBufferDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);
-		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 0);
-		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 1);
-
+		vkCmdDraw(commandBuffers[frameCounter], 36, 2, 0, 0);
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
 
 		if (vkEndCommandBuffer(commandBuffers[frameCounter]) != VK_SUCCESS) {

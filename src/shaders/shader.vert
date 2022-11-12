@@ -22,7 +22,7 @@ layout (std140,set = 1, binding = 0) readonly buffer ObjectBuffer{
 } objectBuffer;
 
 void main() {
-	gl_Position = vp.projection * vp.view * objectBuffer.objects[gl_BaseInstance].model * vec4(inPosition, 1.0);
+	gl_Position = vp.projection * vp.view * objectBuffer.objects[gl_InstanceIndex].model * vec4(inPosition, 1.0);
 	fragColor = inColor;
 	fragTexCoord = inTexCoord;
 }
