@@ -1,7 +1,7 @@
 #include "common.h"
 
-#define PI32 3.1415926f
-#define TAU32 6.283185f
+#define PI32  3.1415926535f
+#define TAU32 6.2831853071f
 
 namespace math {
 	struct Vector3 {
@@ -40,9 +40,12 @@ namespace math {
 	Matrix4 translateMatrix(Matrix4 m, Vector3 translate);
 	Matrix4 scaleMatrix(Matrix4 m, Vector3 scale);
 	Matrix4 scaleMatrix(Matrix4 m, f32 scalar);
-	Matrix4 initPerspectiveMatrix(f32 width, f32 height, f32 zFar, f32 zNear);
+	Matrix4 createFrustum(f32 left, f32 right, f32 bottom, f32 top, f32 zNear, f32 zFar);
+	Matrix4 createPerspective(f32 fov, f32 aspect, f32 zNear, f32 zFar);
 	Matrix4 lookAt(Vector3 from, Vector3 to, Vector3 up);
 	Matrix4 initXAxisRotationMatrix(f32 angle);
 	Matrix4 initYAxisRotationMatrix(f32 angle);
 	Matrix4 initZAxisRotationMatrix(f32 angle);
+
+	f32 radians(f32 degrees);
 }

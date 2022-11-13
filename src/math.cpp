@@ -86,14 +86,24 @@ namespace math {
 		return scaleMatrix(m, Vector3{scalar, scalar, scalar});
 	}
 
-	Matrix4 initPerspectiveMatrix(f32 width, f32 height, f32 zFar, f32 zNear) {
+	Matrix4 createFrustum(f32 left, f32 right, f32 bottom, f32 top, f32 zNear, f32 zFar) {
 		Matrix4 m = {};
-		m.e.m00 = zNear/(0.5f*width);
-		m.e.m11 = zNear/(0.5f*height);
+		m.e.m00 = 2*zNear/(right - left);
+		m.e.m02 = (right + left) / (right - left);
+		m.e.m12 = (top + bottom)  / (top - bottom);
+		m.e.m11 = 2*zNear/(top - bottom);
 		m.e.m22 = -(zFar+zNear)/(zFar-zNear);
 		m.e.m23 = -2*zFar*zNear/(zFar-zNear);
 		m.e.m32 = -1;
 		return m;
+	}
+
+	Matrix4 createPerspective(f32 fovRadians, f32 aspect, f32 zNear, f32 zFar) {
+		Matrix4 m = {};
+		f32 tangent = tanf(fovRadians/2);
+		f32 half_height = zNear * tangent;
+		f32 half_width = half_height * aspect;
+		return createFrustum(-half_width, half_width, -half_height, half_height, zNear, zFar);
 	}
 
 	Matrix4 lookAt(Vector3 from, Vector3 to, Vector3 up) {
@@ -142,5 +152,10 @@ namespace math {
 		m.e.m22 = 1;
 		m.e.m33 = 1;
 		return m;
+	}
+
+
+	f32 radians(f32 degrees) {
+		return degrees * TAU32 / 360.0f;
 	}
 };

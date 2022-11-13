@@ -1628,7 +1628,7 @@ int main(void) {
 		f32 camZ = sinf(glfwGetTime());
 
 		ub.view = math::initIdentityMatrix();//math::lookAt(math::Vector3{1.0f, 0.0f, 3.0f}, math::Vector3{0.0f, 0.0f, -2.0f}, math::Vector3{0.0f, 1.0f, 0.0f});
-		ub.projection = math::initPerspectiveMatrix((f32)swapchain.extent.width/(f32)swapchain.extent.height, 1.0f, 100.0f, 0.1f);
+		ub.projection = math::createPerspective(math::radians(60.0f), (f32)swapchain.extent.width/(f32)swapchain.extent.height, 0.1f, 100.0f);
 
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &vertexBuffer.buffer, offsets);
@@ -1636,11 +1636,11 @@ int main(void) {
 		memcpy(uniformBuffers[frameCounter].mappedData, &ub, sizeof(ub));
 
 		GPUObjectData objects[2];
-		objects[0].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 10.0f, 0.0f, -8.0f });
+		objects[0].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 5.0f, 0.0f, -15.0f });
 		objects[0].model = math::scaleMatrix(objects[0].model, 5.0f);
 		objects[0].model = objects[0].model.multiply(math::initYAxisRotationMatrix(fmodf(glfwGetTime(), TAU32)));
 
-		objects[1].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ -10.0f, 0.0f, -8.0f });
+		objects[1].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ -5.0f, 0.0f, -15.0f });
 		objects[1].model = math::scaleMatrix(objects[1].model, 5.0f);
 		objects[1].model = objects[1].model.multiply(math::initXAxisRotationMatrix(fmodf(glfwGetTime(), TAU32)));
 		memcpy(objectBuffers[frameCounter].mappedData, &objects, sizeof(objects));
