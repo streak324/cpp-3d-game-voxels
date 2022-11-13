@@ -6,11 +6,14 @@
 namespace math {
 	struct Vector3 {
 		f32 x, y, z;
+
+		Vector3 add(Vector3 b);
 		Vector3 sub(Vector3 b);
 		Vector3 negate();
 		Vector3 normalize();
 		Vector3 cross(Vector3 b);
 		f32 dot(Vector3 b);
+		Vector3 scale(f32 s);
 	};
 
 	union Matrix4 {

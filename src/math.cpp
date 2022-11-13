@@ -2,6 +2,14 @@
 #include <math.h>
 
 namespace math {
+	Vector3 Vector3::add(Vector3 b) {
+		return Vector3 {
+			x + b.x,
+			y + b.y,
+			z + b.z
+		};
+	}
+
 	Vector3 Vector3::sub(Vector3 b) {
 		return Vector3 {
 			x - b.x,
@@ -33,6 +41,14 @@ namespace math {
 			y * b.z - z * b.y,
 			z * b.x - x * b.z,
 			x * b.y - y * b.x,
+		};
+	}
+
+	Vector3 Vector3::scale(f32 s) {
+		return Vector3 {
+			x * s,
+			y * s,
+			z * s,
 		};
 	}
 
@@ -107,15 +123,14 @@ namespace math {
 	}
 
 	Matrix4 lookAt(Vector3 from, Vector3 to, Vector3 up) {
-		Vector3 fromTo = to.sub(from);
-		Vector3 forward = fromTo.negate().normalize();
+		Vector3 forward = from.sub(to).normalize();
 		Vector3 right = up.cross(forward).normalize();
 		Vector3 newUp = forward.cross(right);
 		Matrix4 m = {};
 		m.e.m00 = right.x, m.e.m01 = right.y, m.e.m02 = right.z;
 		m.e.m10 = newUp.x, m.e.m11 = newUp.y, m.e.m12 = newUp.z;
 		m.e.m20 = forward.x, m.e.m21 = forward.y, m.e.m22 = forward.z;
-		m.e.m30 = right.dot(from.negate()), m.e.m31 = newUp.dot(from.negate()), m.e.m32 = forward.dot(from.negate());
+		m.e.m03 = right.dot(from.negate()), m.e.m13 = newUp.dot(from.negate()), m.e.m23 = forward.dot(from.negate());
 		m.e.m33 = 1.0f;
 		return m;
 	}

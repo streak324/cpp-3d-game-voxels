@@ -1559,6 +1559,10 @@ int main(void) {
 		}
 	}
 
+	f64 lastFrameDelta = glfwGetTime();
+	const f32 max_timestep = 1.0f / 60.0f;
+	math::Vector3 cameraPosition = {};
+
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
 
@@ -1569,6 +1573,34 @@ int main(void) {
 		/* Poll for and process events */
 		glfwPollEvents();
 
+		f32 timestep = fminf(max_timestep, glfwGetTime() - lastFrameDelta);
+
+		math::Vector3 cameraForwardUnitVelocity = {};
+		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+			cameraForwardUnitVelocity.z -= 1;
+		}
+		if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+			cameraForwardUnitVelocity.x -= 1;
+		}
+		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+			cameraForwardUnitVelocity.z += 1;
+		}
+		if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+			cameraForwardUnitVelocity.x += 1;
+		}
+		if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+			cameraForwardUnitVelocity.y += 1;
+		}
+		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+			cameraForwardUnitVelocity.y -= 1;
+		}
+		{
+			f32 distanceSquared = cameraForwardUnitVelocity.dot(cameraForwardUnitVelocity);
+			if (distanceSquared > (1/1024.0f)) {
+				cameraForwardUnitVelocity = cameraForwardUnitVelocity.normalize();
+				cameraPosition = cameraPosition.add(cameraForwardUnitVelocity.scale(3*timestep));
+			}
+		}
 
 		vkWaitForFences(device, 1, &inFlightFences[frameCounter], VK_TRUE, UINT64_MAX);
 		u32 imageIndex;
@@ -1644,7 +1676,7 @@ int main(void) {
 		UniformBufferData ub = {};
 		f32 scale = 2.0f;
 
-		ub.view = math::initIdentityMatrix();//math::lookAt(math::Vector3{1.0f, 0.0f, 3.0f}, math::Vector3{0.0f, 0.0f, -2.0f}, math::Vector3{0.0f, 1.0f, 0.0f});
+		ub.view = math::lookAt(cameraPosition, cameraPosition.add(math::Vector3{0.0f, 0.0f, -1.0f}), math::Vector3{0.0f, 1.0f, 0.0f});
 		ub.projection = math::createPerspective(math::radians(90.0f), (f32)swapchain.extent.width/(f32)swapchain.extent.height, 0.1f, 100.0f);
 
 		VkDeviceSize offsets[] = {0};
