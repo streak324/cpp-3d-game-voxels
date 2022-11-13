@@ -1146,52 +1146,52 @@ int main(void) {
 		//{ {-1.0f, -1.0f, 1.0f }, { 1.0, 0.0, 0.0, 1.0 } }
 
 		//front
-		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, {  0.0f, 0.0f, } },
-		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
-		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
-		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, {  0.0f, 1.0f, } },
-		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, {  0.0f, 0.0f, } },
+		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
+		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
+		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
 
 		//back
-		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 0.0f, 0.0f, 1.0f },  {  0.0f, 0.0f, } },
-		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 0.0f, 0.0f, 1.0f, }, {  0.0f, 1.0f, } },
-		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 0.0f, 0.0f, 1.0f, }, { 1.0f, 1.0f, } },
-		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 0.0f, 0.0f, 1.0f, }, { 1.0f, 1.0f, } },
-		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 0.0f, 0.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 0.0f, 0.0f, 1.0f, }, {  0.0f, 0.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f },  { 0.0f, 1.0f, } },
+		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
 
 		//left side
-		{ { -0.5f,  0.5f,  0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, {  1.0f, 0.0f, } },
-		{ { -0.5f,  0.5f, -0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, {  1.0f, 1.0f, } },
-		{ { -0.5f, -0.5f, -0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, {  0.0f, 1.0f, } },
-		{ { -0.5f, -0.5f, -0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, {  0.0f, 1.0f, } },
-		{ { -0.5f, -0.5f,  0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, {  0.0f, 0.0f, } },
-		{ { -0.5f,  0.5f,  0.5f, }, { 0.0f, 1.0f, 0.0f, 1.0f, }, {  1.0f, 0.0f, } },
+		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
+		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
+		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
 
 		//right side
-		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { 0.5f, -0.5f,  0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
-		{ { 0.5f, -0.5f, -0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
-		{ { 0.5f, -0.5f, -0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
-		{ { 0.5f,  0.5f, -0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
-		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 0.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
+		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
 
 		//bottom side
-		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 0.0f, 1.0f, }, {  0.0f, 1.0f, } },
-		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 0.0f, 1.0f, }, { 1.0f, 1.0f, } },
-		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 0.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 0.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 0.0f, 1.0f, }, {  0.0f, 0.0f, } },
-		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 0.0f, 1.0f, }, {  0.0f, 1.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
+		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, }},
+		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
 
 		//top side
-		{ { -0.5f,  0.5f, -0.5f, }, { 0.0f, 1.0f, 1.0f, 1.0f, }, {  0.0f, 1.0f, } },
-		{ { -0.5f,  0.5f,  0.5f, }, { 0.0f, 1.0f, 1.0f, 1.0f, }, {  0.0f, 0.0f, } },
-		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { 0.5f,  0.5f,  0.5f,  }, { 0.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { 0.5f,  0.5f, -0.5f,  }, { 0.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
-		{ { -0.5f,  0.5f, -0.5f, }, { 0.0f, 1.0f, 1.0f, 1.0f, }, {  0.0f, 1.0f } },
+		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
+		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
+		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
 
 
 	};
@@ -1310,8 +1310,8 @@ int main(void) {
 	{ //load and create texture image
 
 		int texWidth, texHeight, texChannels;
-		stbi_uc* pixels = stbi_load("./assets/textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-		VkDeviceSize imageSize=  texWidth * texHeight * 4;
+		stbi_uc* pixels = stbi_load("./assets/textures/grass_side.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+		VkDeviceSize imageSize =  texWidth * texHeight * 4;
 		if (!pixels) {
 			printf("failed to load texture image!");
 			return 1;
@@ -1421,6 +1421,27 @@ int main(void) {
 	VkSampler linearFilterSampler = {};
 	vkCheck(vkCreateSampler(device, &linearFilterSamplerInfo, nil, &linearFilterSampler));
 
+	VkSamplerCreateInfo nearestFilterSamplerInfo = {};
+	nearestFilterSamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	nearestFilterSamplerInfo.magFilter = VK_FILTER_NEAREST; //TODO: make it an option to specify which filter to use
+	nearestFilterSamplerInfo.minFilter = VK_FILTER_NEAREST;
+	nearestFilterSamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	nearestFilterSamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	nearestFilterSamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	nearestFilterSamplerInfo.anisotropyEnable = VK_TRUE;
+	nearestFilterSamplerInfo.maxAnisotropy = physicalDeviceProperties.limits.maxSamplerAnisotropy;
+	nearestFilterSamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	nearestFilterSamplerInfo.unnormalizedCoordinates = VK_FALSE;
+	nearestFilterSamplerInfo.compareEnable = VK_FALSE;
+	nearestFilterSamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	nearestFilterSamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	nearestFilterSamplerInfo.mipLodBias = 0.0f;
+	nearestFilterSamplerInfo.minLod = 0.0f;
+	nearestFilterSamplerInfo.maxLod = 0.0f;
+
+	VkSampler nearestFilterSampler = {};
+	vkCheck(vkCreateSampler(device, &nearestFilterSamplerInfo, nil, &nearestFilterSampler));
+
 
 	VkDescriptorPoolSize poolSizes [3] = {};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1479,7 +1500,7 @@ int main(void) {
 		VkDescriptorImageInfo imageInfo = {};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		imageInfo.imageView = textureImage.imageView;
-		imageInfo.sampler = linearFilterSampler;
+		imageInfo.sampler = nearestFilterSampler;
 
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].dstSet = uniformBufferDescriptorSets[i];
@@ -1537,7 +1558,6 @@ int main(void) {
 			return 1;
 		}
 	}
-
 
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
@@ -1624,9 +1644,6 @@ int main(void) {
 		UniformBufferData ub = {};
 		f32 scale = 2.0f;
 
-		f32 camX = cosf(glfwGetTime());
-		f32 camZ = sinf(glfwGetTime());
-
 		ub.view = math::initIdentityMatrix();//math::lookAt(math::Vector3{1.0f, 0.0f, 3.0f}, math::Vector3{0.0f, 0.0f, -2.0f}, math::Vector3{0.0f, 1.0f, 0.0f});
 		ub.projection = math::createPerspective(math::radians(90.0f), (f32)swapchain.extent.width/(f32)swapchain.extent.height, 0.1f, 100.0f);
 
@@ -1635,19 +1652,23 @@ int main(void) {
 
 		memcpy(uniformBuffers[frameCounter].mappedData, &ub, sizeof(ub));
 
-		GPUObjectData objects[2];
-		objects[0].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 5.0f, 0.0f, -15.0f });
+		GPUObjectData objects[3];
+		objects[0].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 6.0f, 0.0f, -15.0f });
 		objects[0].model = math::scaleMatrix(objects[0].model, 5.0f);
 		objects[0].model = objects[0].model.multiply(math::initYAxisRotationMatrix(fmodf(glfwGetTime(), TAU32)));
 
-		objects[1].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ -5.0f, 0.0f, -15.0f });
+		objects[1].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ -6.0f, 0.0f, -15.0f });
 		objects[1].model = math::scaleMatrix(objects[1].model, 5.0f);
 		objects[1].model = objects[1].model.multiply(math::initXAxisRotationMatrix(fmodf(glfwGetTime(), TAU32)));
+
+		objects[2].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 6.0f, -15.0f });
+		objects[2].model = math::scaleMatrix(objects[2].model, 5.0f);
+
 		memcpy(objectBuffers[frameCounter].mappedData, &objects, sizeof(objects));
 
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &uniformBufferDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);
-		vkCmdDraw(commandBuffers[frameCounter], 36, 2, 0, 0);
+		vkCmdDraw(commandBuffers[frameCounter], 36, 3, 0, 0);
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
 
 		if (vkEndCommandBuffer(commandBuffers[frameCounter]) != VK_SUCCESS) {
