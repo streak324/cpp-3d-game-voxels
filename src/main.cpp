@@ -1562,16 +1562,63 @@ int main(void) {
 	f64 lastFrameDelta = glfwGetTime();
 	const f32 max_timestep = 1.0f / 60.0f;
 	math::Vector3 cameraPosition = {};
-
+	math::Vector3 negativeZAxis = {0.0f, 0.0f, -1.0f};
+	
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	if (glfwRawMouseMotionSupported()) {
+		glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+	}
+
 
 	u64 frameCounter = -1;
+
+	f64 lastCursorX, lastCursorY;
+	f64 cursorX, cursorY;
+	glfwGetCursorPos(window, &cursorX, &cursorY);
+	lastCursorY = cursorX;
+	lastCursorY = cursorY;
+
+	f32 cameraPitch = 0.0f;
+	f32 cameraYaw = -PI32/2;
+
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
 		frameCounter = (frameCounter + 1) % MAX_FRAMES_IN_FLIGHT;
 		/* Poll for and process events */
 		glfwPollEvents();
+
+		int windowWidth, windowHeight;
+		glfwGetWindowSize(window, &windowWidth, &windowHeight);
+		if (windowWidth == 0 || windowHeight == 0) {
+			glfwWaitEventsTimeout(0.1);
+			continue;
+		}
+
+		lastCursorX = cursorX;
+		lastCursorY = cursorY;
+		glfwGetCursorPos(window, &cursorX, &cursorY);
+
+		f32 deltaCursorX = cursorX - lastCursorX;
+		f32 deltaCursorY = -(cursorY - lastCursorY);
+		printf("%f, %f\n", deltaCursorX, deltaCursorY);
+
+		cameraYaw += deltaCursorX / 100.0f;
+		cameraPitch += deltaCursorY / 100.0f;
+		f32 minPitch = -0.5*PI32+math::radians(1);
+		f32 maxPitch = 0.5*PI32-math::radians(1);
+		if (cameraPitch < minPitch) {
+			cameraPitch = minPitch;
+		} else if (cameraPitch > maxPitch) {
+			cameraPitch = maxPitch;
+		}
+
+		math::Vector3 cameraDirection = {
+			cosf(cameraYaw) * cosf(cameraPitch),
+			sinf(cameraPitch),
+			sinf(cameraYaw) * cosf(cameraPitch),
+		};
 
 		f32 timestep = fminf(max_timestep, glfwGetTime() - lastFrameDelta);
 
@@ -1595,10 +1642,19 @@ int main(void) {
 			cameraForwardUnitVelocity.y -= 1;
 		}
 		{
+			f32 cameraSpeed = 5;
 			f32 distanceSquared = cameraForwardUnitVelocity.dot(cameraForwardUnitVelocity);
 			if (distanceSquared > (1/1024.0f)) {
-				cameraForwardUnitVelocity = cameraForwardUnitVelocity.normalize();
-				cameraPosition = cameraPosition.add(cameraForwardUnitVelocity.scale(3*timestep));
+				math::Vector3 up = {0.0, 1.0, 0.0};
+				math::Vector3 forward = cameraDirection;
+				math::Vector3 right = up.cross(forward).normalize();
+				math::Vector3 newUp = forward.cross(right);
+				math::Vector3 cameraVelocity = 
+					forward.scale(cameraForwardUnitVelocity.z)
+					.add(right.scale(cameraForwardUnitVelocity.x)
+					.add(newUp.scale(cameraForwardUnitVelocity.y)))
+					.scale(-cameraSpeed);
+				cameraPosition = cameraPosition.add(cameraVelocity.scale(timestep));
 			}
 		}
 
@@ -1676,7 +1732,7 @@ int main(void) {
 		UniformBufferData ub = {};
 		f32 scale = 2.0f;
 
-		ub.view = math::lookAt(cameraPosition, cameraPosition.add(math::Vector3{0.0f, 0.0f, -1.0f}), math::Vector3{0.0f, 1.0f, 0.0f});
+		ub.view = math::lookAt(cameraPosition, cameraPosition.add(cameraDirection), math::Vector3{0.0f, 1.0f, 0.0f});
 		ub.projection = math::createPerspective(math::radians(90.0f), (f32)swapchain.extent.width/(f32)swapchain.extent.height, 0.1f, 100.0f);
 
 		VkDeviceSize offsets[] = {0};

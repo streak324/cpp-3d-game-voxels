@@ -34,6 +34,7 @@ namespace math {
 		};
 	}
 
+	//this x b
 	Vector3 Vector3::cross(Vector3 b) {
 		// A = ai + bj + ck B = xi + yj + zk
 		// A × B = (bz – cy)i + (cx – az)j + (ay – bx)k
@@ -42,6 +43,14 @@ namespace math {
 			z * b.x - x * b.z,
 			x * b.y - y * b.x,
 		};
+	}
+
+	// this projected onto vector
+	Vector3 Vector3::project(Vector3 onto) {
+		f32 ontoDot = onto.dot(onto);
+		_assert(ontoDot > 1/1024.0f);
+		f32 dot = this->dot(onto);
+		return onto.scale(dot/ontoDot);
 	}
 
 	Vector3 Vector3::scale(f32 s) {

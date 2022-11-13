@@ -14,6 +14,7 @@ namespace math {
 		Vector3 cross(Vector3 b);
 		f32 dot(Vector3 b);
 		Vector3 scale(f32 s);
+		Vector3 project(Vector3 onto);
 	};
 
 	union Matrix4 {
