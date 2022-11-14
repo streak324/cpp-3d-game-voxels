@@ -1400,27 +1400,6 @@ int main(void) {
 		vkCheck(vkCreateImageView(device, &viewInfo, nil, &textureImage.imageView));
 	}
 
-	VkSamplerCreateInfo linearFilterSamplerInfo = {};
-	linearFilterSamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	linearFilterSamplerInfo.magFilter = VK_FILTER_LINEAR; //TODO: make it an option to specify which filter to use
-	linearFilterSamplerInfo.minFilter = VK_FILTER_LINEAR;
-	linearFilterSamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	linearFilterSamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	linearFilterSamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	linearFilterSamplerInfo.anisotropyEnable = VK_TRUE;
-	linearFilterSamplerInfo.maxAnisotropy = physicalDeviceProperties.limits.maxSamplerAnisotropy;
-	linearFilterSamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	linearFilterSamplerInfo.unnormalizedCoordinates = VK_FALSE;
-	linearFilterSamplerInfo.compareEnable = VK_FALSE;
-	linearFilterSamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	linearFilterSamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	linearFilterSamplerInfo.mipLodBias = 0.0f;
-	linearFilterSamplerInfo.minLod = 0.0f;
-	linearFilterSamplerInfo.maxLod = 0.0f;
-	
-	VkSampler linearFilterSampler = {};
-	vkCheck(vkCreateSampler(device, &linearFilterSamplerInfo, nil, &linearFilterSampler));
-
 	VkSamplerCreateInfo nearestFilterSamplerInfo = {};
 	nearestFilterSamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 	nearestFilterSamplerInfo.magFilter = VK_FILTER_NEAREST; //TODO: make it an option to specify which filter to use
@@ -1602,7 +1581,6 @@ int main(void) {
 
 		f32 deltaCursorX = cursorX - lastCursorX;
 		f32 deltaCursorY = -(cursorY - lastCursorY);
-		printf("%f, %f\n", deltaCursorX, deltaCursorY);
 
 		cameraYaw += deltaCursorX / 100.0f;
 		cameraPitch += deltaCursorY / 100.0f;
@@ -1636,10 +1614,10 @@ int main(void) {
 			cameraForwardUnitVelocity.x += 1;
 		}
 		if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-			cameraForwardUnitVelocity.y += 1;
+			cameraForwardUnitVelocity.y -= 1;
 		}
 		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-			cameraForwardUnitVelocity.y -= 1;
+			cameraForwardUnitVelocity.y += 1;
 		}
 		{
 			f32 cameraSpeed = 5;
