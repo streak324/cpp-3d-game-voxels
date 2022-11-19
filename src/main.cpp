@@ -1256,17 +1256,14 @@ int main(void) {
 		return 1;
 	}
 
-	PositionColorTextureVertex cubeVertices[36] = {
+	const u32 cubeFrontFaceOffset = 0;
+	const u32 cubeBackFaceOffset = 6;
+	const u32 cubeLeftSideFaceOffset = 12;
+	const u32 cubeRightSideFaceOffset = 18;
+	const u32 cubeBottomFaceOffset = 24;
+	const u32 cubeTopFaceOffset = 30;
+	const PositionColorTextureVertex cubeVertices[36] = {
 		// 3D Position, 4D Color
-		//{ {1.0f, 1.0f, -1.0f }, { 1.0, 1.0, 1.0, 1.0 } },
-		//{ {1.0f, -1.0f, -1.0f }, { 0.0, 1.0, 0.0, 1.0 } },
-		//{ {1.0f, 1.0f, 1.0f }, { 0.0, 0.0, 1.0, 1.0 } },
-		//{ {1.0f, -1.0f, 1.0f }, { 1.0, 0.0, 0.0, 1.0 } },
-
-		//{ {-1.0f, 1.0f, -1.0f }, { 1.0, 1.0, 1.0, 1.0 } },
-		//{ {-1.0f, -1.0f, -1.0f }, { 0.0, 1.0, 0.0, 1.0 } },
-		//{ {-1.0f, 1.0f, 1.0f }, { 0.0, 0.0, 1.0, 1.0 } },
-		//{ {-1.0f, -1.0f, 1.0f }, { 1.0, 0.0, 0.0, 1.0 } }
 
 		//front
 		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
@@ -1277,64 +1274,48 @@ int main(void) {
 		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
 
 		//back
-		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f },  { 0.0f, 1.0f, } },
-		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f  }, { 0.0f, 1.0f, } },
+		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
 		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
 		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
+		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
 		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
 
 		//left side
-		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
-		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
-		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
-		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
+		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
+		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
+		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
 
 		//right side
-		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
-		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
-		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
-		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
+		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
+		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
 
 		//bottom side
 		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
 		{ { 0.5f, -0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
 		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, }},
+		{ { 0.5f, -0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
 		{ { -0.5f, -0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
 		{ { -0.5f, -0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
 
 		//top side
-		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
-		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
-		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
-		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
-		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
-
-
-	};
-	u32 indices[] = {
-		6, 7, 3, 3, 2, 6,
-		6, 5, 7, 6, 4, 5,
-		4, 0, 1, 1, 5, 4,
-		1, 0, 2, 2, 3, 1,
-		0, 4, 6, 6, 2, 0,
-		3, 7, 5, 5, 1, 3,
+		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
+		{ { -0.5f,  0.5f,  0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 1.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
+		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
+		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
 	};
 
 	VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
 	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &physicalDeviceMemoryProperties);
-
-	Buffer indexBuffer = createBuffer(physicalDeviceMemoryProperties, device, sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	if (indexBuffer.createResult != VK_SUCCESS) {
-		printf("failed to create index buffer!!!\n");
-		return 1;
-	}
 
 	Buffer stagingBuffer = createBuffer(physicalDeviceMemoryProperties, device, 100*1000*1000, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	if (stagingBuffer.createResult != VK_SUCCESS) {
@@ -1388,35 +1369,6 @@ int main(void) {
 		vkQueueWaitIdle(graphicsQueue);
 	}
 
-	{
-		vkResetCommandBuffer(copyDataCmdBuffer, 0);
-
-		void *data;
-		vkMapMemory(device, stagingBuffer.memory, 0, stagingBuffer.size, 0, &data);
-		memcpy(data, indices, sizeof(indices));
-		vkUnmapMemory(device, stagingBuffer.memory);
-
-		VkCommandBufferBeginInfo beginInfo = {};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		vkBeginCommandBuffer(copyDataCmdBuffer, &beginInfo);
-
-		VkBufferCopy copyRegion = {};
-		copyRegion.srcOffset = 0;
-		copyRegion.dstOffset = 0;
-		copyRegion.size = sizeof(indices);
-		vkCmdCopyBuffer(copyDataCmdBuffer, stagingBuffer.buffer, indexBuffer.buffer, 1, &copyRegion);
-		vkEndCommandBuffer(copyDataCmdBuffer);
-
-		VkSubmitInfo submitInfo = {};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &copyDataCmdBuffer;
-
-		vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-		vkQueueWaitIdle(graphicsQueue);
-	}
-
 	Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
 	Buffer objectBuffers[MAX_FRAMES_IN_FLIGHT];
 	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -1429,10 +1381,12 @@ int main(void) {
 		vkMapMemory(device, objectBuffers[i].memory, 0, MAX_OBJECTS*sizeof(GPUObjectData), 0, &objectBuffers[i].mappedData);
 	}
 
-	Image grassImage;
-	loadTextureImage("./assets/textures/grass_side.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &grassImage);
+	Image sideGrassImage;
+	loadTextureImage("./assets/textures/grass_side.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &sideGrassImage);
 	Image dirtImage;
 	loadTextureImage("./assets/textures/dirt.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &dirtImage);
+	Image topGrassImage;
+	loadTextureImage("./assets/textures/grass_top.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &topGrassImage);
 
 	VkSamplerCreateInfo nearestFilterSamplerInfo = {};
 	nearestFilterSamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -1550,10 +1504,11 @@ int main(void) {
 		VkDescriptorImageInfo texturesInfo [texturesArrayCapacity] = {};
 		for (u32 i = 0; i < texturesArrayCapacity; i++) {
 			texturesInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			texturesInfo[i].imageView = grassImage.imageView;
+			texturesInfo[i].imageView = sideGrassImage.imageView;
 			texturesInfo[i].sampler = nil;
 		}
 		texturesInfo[1].imageView = dirtImage.imageView;
+		texturesInfo[2].imageView = topGrassImage.imageView;
 
 		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[3].dstSet = textureDescriptorSets[i];
@@ -1803,12 +1758,18 @@ int main(void) {
 
 		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 
-		vkCmdDraw(commandBuffers[frameCounter], 36, 2, 0, 0);
+		vkCmdDraw(commandBuffers[frameCounter], 24, 3, 0, 0);
 
 		tcp.imageIndex = 1;
 		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
+		vkCmdDraw(commandBuffers[frameCounter], 6, 3, cubeBottomFaceOffset, 0);
 
-		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 2);
+		tcp.imageIndex = 2;
+		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
+
+		vkCmdDraw(commandBuffers[frameCounter], 6, 3, cubeTopFaceOffset, 0);
+
+
 
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
 
