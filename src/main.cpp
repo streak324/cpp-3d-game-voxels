@@ -234,6 +234,98 @@ void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayo
 		endSingleTimeCommands(device, commandBuffer, commandPool, queue);
 }
 
+void loadTextureImage(const char *filepath, VkDevice device, Buffer stagingBuffer, VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties, VkCommandPool commandPool, VkQueue transferQueue, Image *textureImage) {
+	int texWidth, texHeight, texChannels;
+	stbi_uc* pixels = stbi_load(filepath, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+	VkDeviceSize imageSize =  texWidth * texHeight * 4;
+	if (!pixels) {
+		printf("failed to load texture image!\n");
+		panic();
+	}
+
+	{
+		void *data;
+		vkMapMemory(device, stagingBuffer.memory, 0, imageSize, 0, &data);
+		memcpy(data, pixels, imageSize);
+		vkUnmapMemory(device, stagingBuffer.memory);
+		stbi_image_free(pixels);
+	}
+
+	VkImageCreateInfo imageInfo = {};
+	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	imageInfo.imageType = VK_IMAGE_TYPE_2D;
+	imageInfo.extent.width = texWidth;
+	imageInfo.extent.height = texHeight;
+	imageInfo.extent.depth = 1;
+	imageInfo.mipLevels = 1;
+	imageInfo.arrayLayers = 1;
+	imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+	imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	imageInfo.flags = 0;
+
+	vkCheck(vkCreateImage(device, &imageInfo, nil, &textureImage->image));
+
+	textureImage->extent = imageInfo.extent;
+
+	VkMemoryRequirements textureImageMemoryRequirements = {};
+	vkGetImageMemoryRequirements(device, textureImage->image, &textureImageMemoryRequirements);
+	VkMemoryAllocateInfo textureImageMemoryAllocateInfo = {};
+	textureImageMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	textureImageMemoryAllocateInfo.allocationSize = textureImageMemoryRequirements.size;
+	textureImageMemoryAllocateInfo.memoryTypeIndex = findMemoryType(physicalDeviceMemoryProperties, textureImageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	vkCheck(vkAllocateMemory(device, &textureImageMemoryAllocateInfo, nil, &textureImage->memory));
+
+	vkBindImageMemory(device, textureImage->image, textureImage->memory, 0);
+
+	//TODO: run copy command buffer, and transition layouts asynchronously
+
+	transitionImageLayout(textureImage->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, device, commandPool, transferQueue);
+	VkCommandBuffer copyCommand = beginSingleTimeCommands(device, commandPool);
+
+	VkBufferImageCopy region = {};
+	region.bufferOffset = 0;
+	region.bufferRowLength = 0;
+	region.bufferImageHeight = 0;
+	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.imageSubresource.mipLevel = 0;
+	region.imageSubresource.baseArrayLayer = 0;
+	region.imageSubresource.layerCount = 1;
+	region.imageOffset = { 0, 0, 0, };
+	region.imageExtent = {
+		textureImage->extent.width, textureImage->extent.height,
+		1
+	};
+
+	vkCmdCopyBufferToImage(
+		copyCommand,
+		stagingBuffer.buffer,
+		textureImage->image,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		1,
+		&region
+	);
+
+	endSingleTimeCommands(device, copyCommand, commandPool, transferQueue);
+
+	transitionImageLayout(textureImage->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, device, commandPool, transferQueue);
+
+	VkImageViewCreateInfo viewInfo = {};
+	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	viewInfo.image = textureImage->image;
+	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	viewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	viewInfo.subresourceRange.baseMipLevel = 0;
+	viewInfo.subresourceRange.levelCount = 1;
+	viewInfo.subresourceRange.baseArrayLayer = 0;
+	viewInfo.subresourceRange.layerCount = 1;
+	vkCheck(vkCreateImageView(device, &viewInfo, nil, &textureImage->imageView));
+}
+
 VkResult createSwapchainAndRenderPass(
 	GLFWwindow *window,
 	VkPhysicalDevice physicalDevice,
@@ -1337,99 +1429,10 @@ int main(void) {
 		vkMapMemory(device, objectBuffers[i].memory, 0, MAX_OBJECTS*sizeof(GPUObjectData), 0, &objectBuffers[i].mappedData);
 	}
 
-	Image textureImage;
-	{ //load and create texture image
-
-		int texWidth, texHeight, texChannels;
-		stbi_uc* pixels = stbi_load("./assets/textures/grass_side.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-		VkDeviceSize imageSize =  texWidth * texHeight * 4;
-		if (!pixels) {
-			printf("failed to load texture image!");
-			return 1;
-		}
-
-		{
-			void *data;
-			vkMapMemory(device, stagingBuffer.memory, 0, imageSize, 0, &data);
-			memcpy(data, pixels, imageSize);
-			vkUnmapMemory(device, stagingBuffer.memory);
-			stbi_image_free(pixels);
-		}
-
-		VkImageCreateInfo imageInfo = {};
-		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		imageInfo.imageType = VK_IMAGE_TYPE_2D;
-		imageInfo.extent.width = texWidth;
-		imageInfo.extent.height = texHeight;
-		imageInfo.extent.depth = 1;
-		imageInfo.mipLevels = 1;
-		imageInfo.arrayLayers = 1;
-		imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		imageInfo.flags = 0;
-
-		vkCheck(vkCreateImage(device, &imageInfo, nil, &textureImage.image));
-
-		textureImage.extent = imageInfo.extent;
-
-		VkMemoryRequirements textureImageMemoryRequirements = {};
-		vkGetImageMemoryRequirements(device, textureImage.image, &textureImageMemoryRequirements);
-		VkMemoryAllocateInfo textureImageMemoryAllocateInfo = {};
-		textureImageMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		textureImageMemoryAllocateInfo.allocationSize = textureImageMemoryRequirements.size;
-		textureImageMemoryAllocateInfo.memoryTypeIndex = findMemoryType(physicalDeviceMemoryProperties, textureImageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-		vkCheck(vkAllocateMemory(device, &textureImageMemoryAllocateInfo, nil, &textureImage.memory));
-
-		vkBindImageMemory(device, textureImage.image, textureImage.memory, 0);
-
-		//TODO: run copy command buffer, and transition layouts asynchronously
-
-		transitionImageLayout(textureImage.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, device, commandPool, graphicsQueue);
-		VkCommandBuffer copyCommand = beginSingleTimeCommands(device, commandPool);
-
-		VkBufferImageCopy region = {};
-		region.bufferOffset = 0;
-		region.bufferRowLength = 0;
-		region.bufferImageHeight = 0;
-		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		region.imageSubresource.mipLevel = 0;
-		region.imageSubresource.baseArrayLayer = 0;
-		region.imageSubresource.layerCount = 1;
-		region.imageOffset = { 0, 0, 0, };
-		region.imageExtent = {
-			textureImage.extent.width, textureImage.extent.height,
-			1
-		};
-
-		vkCmdCopyBufferToImage(
-			copyCommand,
-			stagingBuffer.buffer,
-			textureImage.image,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			1,
-			&region
-		);
-
-		endSingleTimeCommands(device, copyCommand, commandPool, graphicsQueue);
-
-		transitionImageLayout(textureImage.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, device, commandPool, graphicsQueue);
-
-		VkImageViewCreateInfo viewInfo = {};
-		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		viewInfo.image = textureImage.image;
-		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		viewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-		viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		viewInfo.subresourceRange.baseMipLevel = 0;
-		viewInfo.subresourceRange.levelCount = 1;
-		viewInfo.subresourceRange.baseArrayLayer = 0;
-		viewInfo.subresourceRange.layerCount = 1;
-		vkCheck(vkCreateImageView(device, &viewInfo, nil, &textureImage.imageView));
-	}
+	Image grassImage;
+	loadTextureImage("./assets/textures/grass_side.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &grassImage);
+	Image dirtImage;
+	loadTextureImage("./assets/textures/dirt.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &dirtImage);
 
 	VkSamplerCreateInfo nearestFilterSamplerInfo = {};
 	nearestFilterSamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -1547,9 +1550,10 @@ int main(void) {
 		VkDescriptorImageInfo texturesInfo [texturesArrayCapacity] = {};
 		for (u32 i = 0; i < texturesArrayCapacity; i++) {
 			texturesInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			texturesInfo[i].imageView = textureImage.imageView;
+			texturesInfo[i].imageView = grassImage.imageView;
 			texturesInfo[i].sampler = nil;
 		}
+		texturesInfo[1].imageView = dirtImage.imageView;
 
 		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[3].dstSet = textureDescriptorSets[i];
@@ -1799,8 +1803,13 @@ int main(void) {
 
 		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 
+		vkCmdDraw(commandBuffers[frameCounter], 36, 2, 0, 0);
 
-		vkCmdDraw(commandBuffers[frameCounter], 36, 3, 0, 0);
+		tcp.imageIndex = 1;
+		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
+
+		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 2);
+
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
 
 		if (vkEndCommandBuffer(commandBuffers[frameCounter]) != VK_SUCCESS) {
