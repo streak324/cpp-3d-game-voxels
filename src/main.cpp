@@ -1453,7 +1453,7 @@ int main(void) {
 	vkCheck(vkCreateSampler(device, &nearestFilterSamplerInfo, nil, &nearestFilterSampler));
 
 
-	VkDescriptorPoolSize poolSizes [4] = {};
+	VkDescriptorPoolSize poolSizes [3] = {};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
