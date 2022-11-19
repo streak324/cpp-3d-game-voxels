@@ -1388,6 +1388,12 @@ int main(void) {
 	Image topGrassImage;
 	loadTextureImage("./assets/textures/grass_top.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &topGrassImage);
 
+	Image stoneImage;
+	loadTextureImage("./assets/textures/stone.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &stoneImage);
+
+	Image sandImage;
+	loadTextureImage("./assets/textures/sand.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &sandImage);
+
 	VkSamplerCreateInfo nearestFilterSamplerInfo = {};
 	nearestFilterSamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 	nearestFilterSamplerInfo.magFilter = VK_FILTER_NEAREST; //TODO: make it an option to specify which filter to use
@@ -1509,6 +1515,8 @@ int main(void) {
 		}
 		texturesInfo[1].imageView = dirtImage.imageView;
 		texturesInfo[2].imageView = topGrassImage.imageView;
+		texturesInfo[3].imageView = stoneImage.imageView;
+		texturesInfo[4].imageView = sandImage.imageView;
 
 		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[3].dstSet = textureDescriptorSets[i];
@@ -1735,17 +1743,29 @@ int main(void) {
 
 		memcpy(uniformBuffers[frameCounter].mappedData, &ub, sizeof(ub));
 
-		GPUObjectData objects[3];
+		GPUObjectData objects[7];
 		objects[0].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 6.0f, 0.0f, -15.0f });
-		objects[0].model = math::scaleMatrix(objects[0].model, 5.0f);
+		objects[0].model = math::scaleMatrix(objects[0].model, 4.0f);
 		objects[0].model = objects[0].model.multiply(math::initYAxisRotationMatrix(fmodf(glfwGetTime(), TAU32)));
 
 		objects[1].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ -6.0f, 0.0f, -15.0f });
-		objects[1].model = math::scaleMatrix(objects[1].model, 5.0f);
+		objects[1].model = math::scaleMatrix(objects[1].model, 4.0f);
 		objects[1].model = objects[1].model.multiply(math::initXAxisRotationMatrix(fmodf(glfwGetTime(), TAU32)));
 
-		objects[2].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 6.0f, -15.0f });
-		objects[2].model = math::scaleMatrix(objects[2].model, 5.0f);
+		objects[2].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 6.0f, -20.0f });
+		objects[2].model = math::scaleMatrix(objects[2].model, 4.0f);
+
+		objects[3].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 12.0f, 6.0f, -15.0f });
+		objects[3].model = math::scaleMatrix(objects[3].model, math::Vector3{ 4.0f, 4.0f, 1.0f });
+
+		objects[4].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 18.0f, 6.0f, -15.0f });
+		objects[4].model = math::scaleMatrix(objects[4].model, math::Vector3{ 4.0f, 4.0f, 0.5f });
+
+		objects[5].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ -5.0f, 6.0f, -15.0f });
+		objects[5].model = math::scaleMatrix(objects[5].model, 4.0f);
+
+		objects[6].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 5.0f, 6.0f, -15.0f });
+		objects[6].model = math::scaleMatrix(objects[6].model, 4.0f);
 
 		memcpy(objectBuffers[frameCounter].mappedData, &objects, sizeof(objects));
 
@@ -1758,16 +1778,25 @@ int main(void) {
 
 		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 
-		vkCmdDraw(commandBuffers[frameCounter], 24, 3, 0, 0);
+		u32 numObjects = 5;
+		vkCmdDraw(commandBuffers[frameCounter], 24, numObjects, 0, 0);
 
 		tcp.imageIndex = 1;
 		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
-		vkCmdDraw(commandBuffers[frameCounter], 6, 3, cubeBottomFaceOffset, 0);
+		vkCmdDraw(commandBuffers[frameCounter], 6, numObjects, cubeBottomFaceOffset, 0);
 
 		tcp.imageIndex = 2;
 		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 
-		vkCmdDraw(commandBuffers[frameCounter], 6, 3, cubeTopFaceOffset, 0);
+		vkCmdDraw(commandBuffers[frameCounter], 6, numObjects, cubeTopFaceOffset, 0);
+
+		tcp.imageIndex = 3;
+		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
+		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 5);
+
+		tcp.imageIndex = 4;
+		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
+		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 6);
 
 
 
