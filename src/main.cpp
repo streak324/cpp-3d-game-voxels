@@ -17,6 +17,8 @@
 //#include "glm/gtc/type_ptr.hpp";
 #include "common.h"
 #include "math.h"
+#include "voxel.h"
+#include "memory.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
@@ -59,7 +61,7 @@ struct TexturePushConstants {
 	i32 imageIndex;
 };
 
-const int MAX_OBJECTS = 10000;
+const u32 maxVoxels = 2048*2048;
 
 inline void vkCheck(VkResult result) {
 	_assert(result == VK_SUCCESS);
@@ -634,6 +636,13 @@ int main(void) {
 	#ifndef NDEBUG
 		printf("IN DEBUG MODE\n");
 	#endif
+
+	MemoryAllocator* memoryAllocator;
+	{
+		MemoryAllocator tmp;
+		initMemoryAllocator(&tmp, gigabyte(2));
+		memoryAllocator = &tmp;
+	}
 
 	/* Initialize the library */
 	if (!glfwInit()) {
@@ -1376,23 +1385,41 @@ int main(void) {
 		vkCheck(uniformBuffers[i].createResult);
 		vkMapMemory(device, uniformBuffers[i].memory, 0, sizeof(UniformBufferData), 0, &uniformBuffers[i].mappedData);
 
-		objectBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, MAX_OBJECTS*sizeof(GPUObjectData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		objectBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, maxVoxels*sizeof(GPUObjectData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		vkCheck(objectBuffers[i].createResult);
-		vkMapMemory(device, objectBuffers[i].memory, 0, MAX_OBJECTS*sizeof(GPUObjectData), 0, &objectBuffers[i].mappedData);
+		vkMapMemory(device, objectBuffers[i].memory, 0, maxVoxels*sizeof(GPUObjectData), 0, &objectBuffers[i].mappedData);
 	}
 
-	Image sideGrassImage;
-	loadTextureImage("./assets/textures/grass_side.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &sideGrassImage);
-	Image dirtImage;
-	loadTextureImage("./assets/textures/dirt.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &dirtImage);
-	Image topGrassImage;
-	loadTextureImage("./assets/textures/grass_top.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &topGrassImage);
+	Image textureImages[5] = {};
+	const i32 sideGrassImageIndex = 0;
+	const i32 dirtImageIndex = 1;
+	const i32 topGrassImageIndex = 2;
+	const i32 stoneImageIndex = 3;
+	const i32 sandImageIndex = 4;
 
-	Image stoneImage;
-	loadTextureImage("./assets/textures/stone.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &stoneImage);
+	loadTextureImage("./assets/textures/grass_side.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &textureImages[sideGrassImageIndex]);
+	loadTextureImage("./assets/textures/dirt.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &textureImages[dirtImageIndex]);
+	loadTextureImage("./assets/textures/grass_top.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &textureImages[topGrassImageIndex]);
+	loadTextureImage("./assets/textures/stone.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &textureImages[stoneImageIndex]);
+	loadTextureImage("./assets/textures/sand.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &textureImages[sandImageIndex]);
 
-	Image sandImage;
-	loadTextureImage("./assets/textures/sand.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &sandImage);
+	VoxelArray voxelArray = {};
+	voxelArray.capacity = maxVoxels;
+	voxelArray.voxels = (Voxel*)allocateMemory(memoryAllocator, voxelArray.capacity * sizeof(Voxel));
+	VoxelMaterial grassVoxelMaterial = { topGrassImageIndex, sideGrassImageIndex, dirtImageIndex, };
+	VoxelMaterial dirtVoxelMaterial = { dirtImageIndex, dirtImageIndex, dirtImageIndex, };
+	VoxelMaterial stoneVoxelMaterial = { stoneImageIndex, stoneImageIndex, stoneImageIndex };
+	VoxelMaterial sandVoxelMaterial = { sandImageIndex, sandImageIndex, sandImageIndex };
+
+	GPUObjectData* gpuObjects = (GPUObjectData*) allocateMemory(memoryAllocator, voxelArray.capacity * sizeof(GPUObjectData));
+
+	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{48, 0, -120}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{-48, 0, -120}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 48, -160}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{96, 48, -120}, Vector3ui{ 8, 8, 1 });
+	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{96, 48, -120}, Vector3ui{ 8, 8, 1 });
+	addVoxel(&voxelArray, stoneVoxelMaterial, Vector3i{-40, 48, -120}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, sandVoxelMaterial, Vector3i{40, 48, -120}, Vector3ui{ 8, 8, 8 });
 
 	VkSamplerCreateInfo nearestFilterSamplerInfo = {};
 	nearestFilterSamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -1422,13 +1449,13 @@ int main(void) {
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	poolSizes[1].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 	poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	poolSizes[2].descriptorCount = MAX_FRAMES_IN_FLIGHT*(texturesArrayCapacity+1);
+	poolSizes[2].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 
 	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
 	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	descriptorPoolInfo.poolSizeCount = sizeof(poolSizes)/sizeof(poolSizes[0]);
 	descriptorPoolInfo.pPoolSizes = poolSizes;
-	descriptorPoolInfo.maxSets = 6;//2 for view projection data (uniform buffer), 2 for object data (storage buffer)
+	descriptorPoolInfo.maxSets = 6;//2 for view projection data (uniform buffer), 2 for object data (storage buffer), 2 for textures
 
 	VkDescriptorPool descriptorPool;
 	vkCheck(vkCreateDescriptorPool(device, &descriptorPoolInfo, nil, &descriptorPool));
@@ -1483,7 +1510,7 @@ int main(void) {
 		VkDescriptorBufferInfo objectBufferInfo = {};
 		objectBufferInfo.buffer = objectBuffers[i].buffer;
 		objectBufferInfo.offset = 0;
-		objectBufferInfo.range = sizeof(GPUObjectData) * MAX_OBJECTS;
+		objectBufferInfo.range = sizeof(GPUObjectData) * maxVoxels;
 		
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].dstSet = objectDataDescriptorSets[i];
@@ -1510,13 +1537,14 @@ int main(void) {
 		VkDescriptorImageInfo texturesInfo [texturesArrayCapacity] = {};
 		for (u32 i = 0; i < texturesArrayCapacity; i++) {
 			texturesInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			texturesInfo[i].imageView = sideGrassImage.imageView;
+			texturesInfo[i].imageView = textureImages[0].imageView;
 			texturesInfo[i].sampler = nil;
 		}
-		texturesInfo[1].imageView = dirtImage.imageView;
-		texturesInfo[2].imageView = topGrassImage.imageView;
-		texturesInfo[3].imageView = stoneImage.imageView;
-		texturesInfo[4].imageView = sandImage.imageView;
+		for (u32 i = 0; i < sizeof(textureImages)/sizeof(textureImages[0]); i++) {
+			texturesInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			texturesInfo[i].imageView = textureImages[i].imageView;
+			texturesInfo[i].sampler = nil;
+		}
 
 		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[3].dstSet = textureDescriptorSets[i];
@@ -1743,58 +1771,44 @@ int main(void) {
 
 		memcpy(uniformBuffers[frameCounter].mappedData, &ub, sizeof(ub));
 
-		GPUObjectData objects[7];
-		objects[0].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 6.0f, 0.0f, -15.0f });
-		objects[0].model = math::scaleMatrix(objects[0].model, 4.0f);
-		objects[0].model = objects[0].model.multiply(math::initYAxisRotationMatrix(fmodf(glfwGetTime(), TAU32)));
+		const f32 voxelUnitsToWorldUnits = 0.5;
+		for (u32 i = 0; i < voxelArray.size; i++) {
+			Voxel voxel = voxelArray.voxels[i];
+			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ (f32)voxel.position.x, (f32)voxel.position.y, (f32)voxel.position.z }.scale(voxelUnitsToWorldUnits));
+			model = math::scaleMatrix(model, math::Vector3{ (f32) voxel.scale.x, (f32) voxel.scale.y, (f32) voxel.scale.z }.scale(voxelUnitsToWorldUnits));
+			gpuObjects[i] = GPUObjectData{
+				model
+			};
+		}
 
-		objects[1].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ -6.0f, 0.0f, -15.0f });
-		objects[1].model = math::scaleMatrix(objects[1].model, 4.0f);
-		objects[1].model = objects[1].model.multiply(math::initXAxisRotationMatrix(fmodf(glfwGetTime(), TAU32)));
-
-		objects[2].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.0f, 6.0f, -20.0f });
-		objects[2].model = math::scaleMatrix(objects[2].model, 4.0f);
-
-		objects[3].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 12.0f, 6.0f, -15.0f });
-		objects[3].model = math::scaleMatrix(objects[3].model, math::Vector3{ 4.0f, 4.0f, 1.0f });
-
-		objects[4].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 18.0f, 6.0f, -15.0f });
-		objects[4].model = math::scaleMatrix(objects[4].model, math::Vector3{ 4.0f, 4.0f, 0.5f });
-
-		objects[5].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ -5.0f, 6.0f, -15.0f });
-		objects[5].model = math::scaleMatrix(objects[5].model, 4.0f);
-
-		objects[6].model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 5.0f, 6.0f, -15.0f });
-		objects[6].model = math::scaleMatrix(objects[6].model, 4.0f);
-
-		memcpy(objectBuffers[frameCounter].mappedData, &objects, sizeof(objects));
+		memcpy(objectBuffers[frameCounter].mappedData, &gpuObjects, sizeof(voxelArray.size));
 
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &uniformBufferDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 2, 1, &textureDescriptorSets[frameCounter], 0, nil);
 
 		TexturePushConstants tcp = {};
-		tcp.imageIndex = 0;
+		tcp.imageIndex = sideGrassImageIndex;
 
 		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 
 		u32 numObjects = 5;
 		vkCmdDraw(commandBuffers[frameCounter], 24, numObjects, 0, 0);
 
-		tcp.imageIndex = 1;
+		tcp.imageIndex = dirtImageIndex;
 		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 		vkCmdDraw(commandBuffers[frameCounter], 6, numObjects, cubeBottomFaceOffset, 0);
 
-		tcp.imageIndex = 2;
+		tcp.imageIndex = topGrassImageIndex;
 		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 
 		vkCmdDraw(commandBuffers[frameCounter], 6, numObjects, cubeTopFaceOffset, 0);
 
-		tcp.imageIndex = 3;
+		tcp.imageIndex = stoneImageIndex;
 		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 5);
 
-		tcp.imageIndex = 4;
+		tcp.imageIndex = sandImageIndex;
 		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 6);
 
