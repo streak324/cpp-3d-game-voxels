@@ -1413,13 +1413,13 @@ int main(void) {
 
 	GPUObjectData* gpuObjects = (GPUObjectData*) allocateMemory(memoryAllocator, voxelArray.capacity * sizeof(GPUObjectData));
 
-	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{48, 0, -120}, Vector3ui{ 8, 8, 8 });
-	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{-48, 0, -120}, Vector3ui{ 8, 8, 8 });
-	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 48, -160}, Vector3ui{ 8, 8, 8 });
-	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{96, 48, -120}, Vector3ui{ 8, 8, 1 });
-	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{96, 48, -120}, Vector3ui{ 8, 8, 1 });
-	addVoxel(&voxelArray, stoneVoxelMaterial, Vector3i{-40, 48, -120}, Vector3ui{ 8, 8, 8 });
-	addVoxel(&voxelArray, sandVoxelMaterial, Vector3i{40, 48, -120}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{12, 0, -30}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{-12, 0, -30}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 12, -40}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{24, 12, -30}, Vector3ui{ 8, 8, 1 });
+	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{24, 12, -30}, Vector3ui{ 8, 8, 1 });
+	addVoxel(&voxelArray, stoneVoxelMaterial, Vector3i{-10, 12, -30}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, sandVoxelMaterial, Vector3i{10, 12, -30}, Vector3ui{ 8, 8, 8 });
 
 	VkSamplerCreateInfo nearestFilterSamplerInfo = {};
 	nearestFilterSamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -1781,7 +1781,7 @@ int main(void) {
 			};
 		}
 
-		memcpy(objectBuffers[frameCounter].mappedData, &gpuObjects, sizeof(voxelArray.size));
+		memcpy(objectBuffers[frameCounter].mappedData, gpuObjects, sizeof(GPUObjectData)*voxelArray.size);
 
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &uniformBufferDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);

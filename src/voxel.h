@@ -1,4 +1,6 @@
 #pragma once
+#ifndef VOXELS_GAME_VOXEL_H
+#define VOXELS_GAME_VOXEL_H
 #include "common.h"
 
 struct VoxelMaterial {
@@ -33,3 +35,5 @@ struct VoxelArray {
 };
 
 void addVoxel(VoxelArray* voxelArray, VoxelMaterial material, Vector3i position, Vector3ui scale);
+
+#endif

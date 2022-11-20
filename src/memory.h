@@ -1,3 +1,7 @@
+#pragma once
+#ifndef VOXELS_GAME_MEMORY_H
+#define VOXELS_GAME_MEMORY_H
+
 #include "common.h"
 #include <stdlib.h>
 
@@ -22,3 +26,5 @@ void* allocateMemory(MemoryAllocator *allocator, u64 byteAllocation) {
 	allocator->byteOffset += byteAllocation;
 	return ptr;
 }
+
+#endif

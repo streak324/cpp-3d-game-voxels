@@ -136,16 +136,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\common.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\common.cpp" />
     <ClCompile Include="src\math.cpp" />
     <ClCompile Include="src\voxel.cpp" />
-    <ClCompile Include="src\voxel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\math.h" />
     <ClInclude Include="src\memory.h" />
+    <ClInclude Include="src\voxel.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

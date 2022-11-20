@@ -1,3 +1,7 @@
+#pragma once
+#ifndef VOXELS_GAME_MATH_H
+#define VOXELS_GAME_MATH_H
+
 #include "common.h"
 
 #define PI32  3.1415926535f
@@ -53,3 +57,5 @@ namespace math {
 
 	f32 radians(f32 degrees);
 }
+
+#endif

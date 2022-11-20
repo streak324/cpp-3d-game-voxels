@@ -1,3 +1,7 @@
+#pragma once
+#ifndef VOXELS_GAME_COMMON_H
+#define VOXELS_GAME_COMMON_H
+
 #include <stdint.h>
 
 typedef int8_t i8;
@@ -22,3 +26,5 @@ typedef u32 bool32;
 
 void _assert(u8 b);
 void panic();
+
+#endif
