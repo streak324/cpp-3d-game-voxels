@@ -44,6 +44,20 @@ namespace math {
 		Matrix4 multiply(Matrix4 b);
 	};
 
+	/*
+		Quaternion, but in a slightly different representation.
+		[cos(angle/2), sinf(angle) * unit] 
+	*/
+	struct Rotation {
+		f32 angle;
+		Vector3 unit;
+	};
+
+	struct Quaternion {
+		f32 real;
+		Vector3 vector;
+	};
+
 	Matrix4 initIdentityMatrix();
 	Matrix4 translateMatrix(Matrix4 m, Vector3 translate);
 	Matrix4 scaleMatrix(Matrix4 m, Vector3 scale);
@@ -56,6 +70,9 @@ namespace math {
 	Matrix4 initZAxisRotationMatrix(f32 angle);
 
 	f32 radians(f32 degrees);
+
+	Vector3 rotateVector(Vector3 a, Rotation rotation);
+	Matrix4 createRotationMatrix(Rotation rotation);
 }
 
 #endif

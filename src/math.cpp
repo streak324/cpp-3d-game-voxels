@@ -92,9 +92,9 @@ namespace math {
 
 
 	Matrix4 translateMatrix(Matrix4 m, Vector3 translate) {
-		m.e.m03 = translate.x;
-		m.e.m13 = translate.y;
-		m.e.m23 = translate.z;
+		m.e.m03 += translate.x;
+		m.e.m13 += translate.y;
+		m.e.m23 += translate.z;
 		return m;
 	}
 
@@ -182,4 +182,60 @@ namespace math {
 	f32 radians(f32 degrees) {
 		return degrees * TAU32 / 360.0f;
 	}
+
+	bool isUnitVector(Vector3 a) {
+		f32 epsilon = 1 / 4096.0f;
+		f32 distsq = a.dot(a);
+		return distsq <= 1.0f + epsilon && distsq >= 1.0f - epsilon;
+	}
+
+	// c = a * b
+	Quaternion multiplyQuaternions(Quaternion a, Quaternion b) {
+
+		Vector3 cross = a.vector.cross(b.vector);
+		Vector3 bar = b.vector.scale(a.real);
+		Vector3 abr = a.vector.scale(b.real);
+
+		Quaternion quat = {
+			a.real * b.real - a.vector.dot(b.vector),
+			cross.add(bar).add(abr),
+		};
+		return quat;
+	}
+
+	Vector3 rotateVector(Vector3 a, Rotation rotation) {
+		_assert(isUnitVector(rotation.unit));
+		Quaternion q = {
+			cosf(0.5*rotation.angle),
+			rotation.unit.scale(sinf(0.5*rotation.angle)),
+		};
+		Vector3 cross = q.vector.cross(a);
+		Vector3 crossV = q.vector.cross(cross);
+		
+		return a.add(cross.scale(2*q.real)).add(crossV.scale(2));
+	}
+
+	Matrix4 createRotationMatrix(Rotation rotation) {
+		_assert(isUnitVector(rotation.unit));
+		Quaternion q = {
+			cosf(0.5*rotation.angle),
+			rotation.unit.scale(sinf(0.5*rotation.angle)),
+		};
+		Matrix4 m = initIdentityMatrix();
+
+		m.e.m00 = 2 * (q.real * q.real + q.vector.x * q.vector.x) - 1;
+		m.e.m01 = 2 * (q.vector.x * q.vector.y - q.real * q.vector.z);
+		m.e.m02 = 2 * (q.vector.x * q.vector.z + q.real * q.vector.y);
+
+		m.e.m10 = 2 * (q.vector.x * q.vector.y + q.real * q.vector.z);
+		m.e.m11 = 2 * (q.real * q.real + q.vector.y * q.vector.y) - 1;
+		m.e.m12 = 2 * (q.vector.y * q.vector.z - q.real * q.vector.x);
+
+		m.e.m20 = 2 * (q.vector.x * q.vector.z - q.real * q.vector.y);
+		m.e.m21 = 2 * (q.vector.y * q.vector.z + q.real * q.vector.x);
+		m.e.m22 = 2 * (q.real * q.real + q.vector.z * q.vector.z) - 1;
+
+		return m;
+	}
+
 };

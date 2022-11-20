@@ -1414,8 +1414,12 @@ int main(void) {
 
 	GPUObjectData* gpuObjects = (GPUObjectData*) allocateMemory(memoryAllocator, voxelArray.voxelsCapacity * sizeof(GPUObjectData));
 
-	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{12, 0, -30}, Vector3ui{ 8, 8, 8 });
-	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{-12, 0, -30}, Vector3ui{ 8, 8, 8 });
+	i32 g1 = addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 0, 0}, Vector3ui{ 8, 8, 8 });
+	i32 g2 = addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 0, 0}, Vector3ui{ 8, 8, 8 });
+
+	addVoxelGroupFromVoxelRange(&voxelArray, g1, g1, math::Vector3{ 6, 0, -16 });
+	addVoxelGroupFromVoxelRange(&voxelArray, g2, g2, math::Vector3{ -6, 0, -16 });
+
 	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 12, -40}, Vector3ui{ 8, 8, 8 });
 	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{24, 12, -30}, Vector3ui{ 8, 8, 2 });
 	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{36, 12, -30}, Vector3ui{ 8, 8, 1 });
@@ -1782,23 +1786,36 @@ int main(void) {
 
 		memcpy(uniformBuffers[frameCounter].mappedData, &ub, sizeof(ub));
 
-		voxelArray.groups[0].rotation = math::initZAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
+		voxelArray.groups[0].rotation.unit = math::Vector3{ 1.0f, 0.0f, 0.0f };
+		voxelArray.groups[0].rotation.angle = fmodf(glfwGetTime(), TAU32);
+
+		voxelArray.groups[1].rotation.unit = math::Vector3{ 0.0f, 1.0f, 0.0f };
+		voxelArray.groups[1].rotation.angle = fmodf(glfwGetTime(), TAU32);
+
+		voxelArray.groups[2].rotation.unit = math::Vector3{ 1.0f, 0.0f, 1.0f }.normalize();
+		voxelArray.groups[2].rotation.angle = fmodf(glfwGetTime(), TAU32);
 
 		const f32 voxelUnitsToWorldUnits = 0.5;
 		for (u32 i = 0; i < voxelArray.voxelsCount; i++) {
 			math::Vector3 worldPosition = math::Vector3{ (f32)voxelArray.voxelsPosition[i].x, (f32)voxelArray.voxelsPosition[i].y, (f32)voxelArray.voxelsPosition[i].z}.scale(voxelUnitsToWorldUnits);
 
-			math::Matrix4 model = math::initIdentityMatrix();
+			/* TODO:
+				 - rotate group world position	
+				 - translate model matrix with group position
+				 - rotate model matrix
+			*/
 			math::Matrix4 rotationMatrix = math::initIdentityMatrix();
 			if (voxelArray.voxelsGroupIndex[i] >= 0) {
-				voxelArray.groups[voxelArray.voxelsGroupIndex[i]].rotation;
-				worldPosition = worldPosition.add(voxelArray.groups[voxelArray.voxelsGroupIndex[i]].worldPosition);
-				rotationMatrix = voxelArray.groups[voxelArray.voxelsGroupIndex[i]].rotation;
+				//if part of a group, the voxel's world position is now relative to the group's world position.
+				VoxelGroup *group = &voxelArray.groups[voxelArray.voxelsGroupIndex[i]];
+				worldPosition = math::rotateVector(worldPosition, group->rotation);
+				worldPosition = worldPosition.add(group->worldPosition);
+				rotationMatrix = math::createRotationMatrix(group->rotation);
 			}
-			model = math::translateMatrix(model, worldPosition);
+			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), worldPosition);
+			model = model.multiply(rotationMatrix);
 
 			model = math::scaleMatrix(model, math::Vector3{ (f32) voxelArray.voxelsScale[i].x, (f32)voxelArray.voxelsScale[i].y, (f32)voxelArray.voxelsScale[i].z}.scale(voxelUnitsToWorldUnits));
-			model = model.multiply(rotationMatrix);
 			gpuObjects[i] = GPUObjectData{
 				model
 			};

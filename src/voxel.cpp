@@ -29,7 +29,10 @@ i32 addVoxelGroupFromVoxelRange(VoxelArray* voxelArray, u32 start, u32 end, math
 	VoxelGroup* group = &voxelArray->groups[voxelArray->groupsCount];
 	group->start = start;
 	group->end = end;
-	group->rotation = math::initIdentityMatrix();
+	group->rotation = math::Rotation {
+		0.0,
+		math::Vector3{1.0f, 0.0f, 0.0f},
+	};
 	group->worldPosition = worldPosition;
 
 	for (i32 i = start; i <= end; i++) {
