@@ -1416,8 +1416,8 @@ int main(void) {
 	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{12, 0, -30}, Vector3ui{ 8, 8, 8 });
 	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{-12, 0, -30}, Vector3ui{ 8, 8, 8 });
 	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 12, -40}, Vector3ui{ 8, 8, 8 });
-	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{24, 12, -30}, Vector3ui{ 8, 8, 1 });
-	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{24, 12, -30}, Vector3ui{ 8, 8, 1 });
+	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{24, 12, -30}, Vector3ui{ 8, 8, 2 });
+	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{36, 12, -30}, Vector3ui{ 8, 8, 1 });
 	addVoxel(&voxelArray, stoneVoxelMaterial, Vector3i{-10, 12, -30}, Vector3ui{ 8, 8, 8 });
 	addVoxel(&voxelArray, sandVoxelMaterial, Vector3i{10, 12, -30}, Vector3ui{ 8, 8, 8 });
 
@@ -1787,32 +1787,23 @@ int main(void) {
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 2, 1, &textureDescriptorSets[frameCounter], 0, nil);
 
-		TexturePushConstants tcp = {};
-		tcp.imageIndex = sideGrassImageIndex;
+		for (u32 i = 0; i < voxelArray.size; i++) {
+			Voxel voxel = voxelArray.voxels[i];
 
-		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
+			TexturePushConstants tcp = {};
 
-		u32 numObjects = 5;
-		vkCmdDraw(commandBuffers[frameCounter], 24, numObjects, 0, 0);
+			tcp.imageIndex = voxel.material.sideFaceTextureID;
+			vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
+			vkCmdDraw(commandBuffers[frameCounter], 24, 1, 0, i);
 
-		tcp.imageIndex = dirtImageIndex;
-		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
-		vkCmdDraw(commandBuffers[frameCounter], 6, numObjects, cubeBottomFaceOffset, 0);
+			tcp.imageIndex = voxel.material.bottomFaceTextureID;
+			vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
+			vkCmdDraw(commandBuffers[frameCounter], 6, 1, cubeBottomFaceOffset , i);
 
-		tcp.imageIndex = topGrassImageIndex;
-		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
-
-		vkCmdDraw(commandBuffers[frameCounter], 6, numObjects, cubeTopFaceOffset, 0);
-
-		tcp.imageIndex = stoneImageIndex;
-		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
-		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 5);
-
-		tcp.imageIndex = sandImageIndex;
-		vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
-		vkCmdDraw(commandBuffers[frameCounter], 36, 1, 0, 6);
-
-
+			tcp.imageIndex = voxel.material.topFaceTextureID;
+			vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
+			vkCmdDraw(commandBuffers[frameCounter], 6, 1, cubeTopFaceOffset, i);
+		}
 
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
 
