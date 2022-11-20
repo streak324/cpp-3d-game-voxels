@@ -8,20 +8,24 @@
 
 #define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
+#define GLFW_INCLUDE_NONE
+#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
-//#include "glm/glm.hpp"
-//#include "glm/gtc/matrix_transform.hpp";
-//#include "glm/gtc/type_ptr.hpp";
 #include "common.h"
 #include "math.h"
 #include "voxel.h"
 #include "memory.h"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
+#include <stb/stb_image.h>
+
+#define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_vulkan.h>
 
 bool framebufferResized = false;
 struct PositionColorTextureVertex {
@@ -33,6 +37,7 @@ const u32 MAX_FRAMES_IN_FLIGHT = 2;
 
 struct Swapchain {
 	VkSwapchainKHR handle;
+	u32 minImageCount;
 	u32 imageCount;
 	VkImage *images;
 	VkImageView *imageViews;
@@ -62,6 +67,15 @@ struct TexturePushConstants {
 };
 
 const u32 maxVoxels = 2048*2048;
+
+#ifndef NDEBUG
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugReportCallbackFunc(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
+{
+    (void)flags; (void)object; (void)location; (void)messageCode; (void)pUserData; (void)pLayerPrefix; // Unused arguments
+    fprintf(stderr, "[vulkan] Debug report from ObjectType: %i\nMessage: %s\n\n", objectType, pMessage);
+    return VK_FALSE;
+}
+#endif
 
 inline void vkCheck(VkResult result) {
 	_assert(result == VK_SUCCESS);
@@ -584,6 +598,7 @@ VkResult createSwapchainAndRenderPass(
 		printf("unable to create swapchain!\n");
 		return result;
 	}
+	swapchain->minImageCount = minImageCount;
 
 	vkGetSwapchainImagesKHR(device, swapchain->handle, &swapchain->imageCount, nil);
 	swapchain->images = (VkImage *) malloc(swapchain->imageCount * sizeof(VkImage));
@@ -689,6 +704,37 @@ int main(void) {
 	u32 extensionCount = 0;
 	vkEnumerateInstanceExtensionProperties(nil, &extensionCount, nil);
 
+	VkInstanceCreateInfo instanceCreateInfo = {};
+	instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instanceCreateInfo.pApplicationInfo = &appInfo;
+
+	#ifdef NDEBUG
+		instanceCreateInfo.enabledLayerCount = 0;
+		instanceCreateInfo.ppEnabledLayerNames = nil;
+	#else
+		u32 validationLayerCount = 1;
+		const char * validationLayers [1] = {
+			"VK_LAYER_KHRONOS_validation",
+		};
+
+		u32 layerCount;
+		vkEnumerateInstanceLayerProperties(&layerCount, nil);
+		VkLayerProperties * availableLayers = (VkLayerProperties *) _malloca(layerCount * sizeof(VkLayerProperties));
+		for (u32 i = 0; i < validationLayerCount; i++) {
+			u8 found = 0;
+			for (u32 j = 0; j < layerCount; j++) {
+				if (strcmp(validationLayers[i], availableLayers[j].layerName) == 0) {
+					printf("validation layer %s is not supported", validationLayers[i]);
+					return 1;
+				}
+			}
+		}
+		requiredExtensions[requiredExtensionCount] = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;
+		requiredExtensionCount += 1;
+
+	#endif
+
+
 	VkExtensionProperties * extensions = (VkExtensionProperties*) _malloca(extensionCount * sizeof(VkExtensionProperties));
 	const char* *extensionNames = (const char**) _malloca(extensionCount * sizeof(char*));
 	vkEnumerateInstanceExtensionProperties(nil, &extensionCount, extensions);
@@ -697,7 +743,6 @@ int main(void) {
 		printf("extension: %s\n", extensions[i].extensionName);
 		extensionNames[i] = extensions[i].extensionName;
 	}
-
 
 	for (u32 i=0; i < requiredExtensionCount; i++) {
 		printf("required extension %s\n", requiredExtensions[i]);
@@ -714,45 +759,11 @@ int main(void) {
 		}
 	}
 
-	u32 validationLayerCount = 1;
-	const char * validationLayers [1] = {
-		"VK_LAYER_KHRONOS_validation",
-	};
 
-	#ifdef NDEBUG
-		const u8 enableValidationLayers = 0;
-	#else
-		const u8 enableValidationLayers = 1;
-	#endif
-
-	VkInstanceCreateInfo instanceCreateInfo = {};
-	instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	instanceCreateInfo.pApplicationInfo = &appInfo;
-
-	//mac os thing
-	//instanceCreateInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 	instanceCreateInfo.flags = 0;
-
 	instanceCreateInfo.enabledExtensionCount = extensionCount;
 	instanceCreateInfo.ppEnabledExtensionNames = extensionNames;
 	instanceCreateInfo.enabledLayerCount = 0;
-
-	if (enableValidationLayers) {
-		u32 layerCount;
-		vkEnumerateInstanceLayerProperties(&layerCount, nil);
-		VkLayerProperties * availableLayers = (VkLayerProperties *) _malloca(layerCount * sizeof(VkLayerProperties));
-		for (u32 i = 0; i < validationLayerCount; i++) {
-			u8 found = 0;
-			for (u32 j = 0; j < layerCount; j++) {
-				if (strcmp(validationLayers[i], availableLayers[j].layerName) == 0) {
-					printf("validation layer %s is not supported", validationLayers[i]);
-					return 1;
-				}
-			}
-		}
-		instanceCreateInfo.enabledLayerCount = validationLayerCount;
-		instanceCreateInfo.ppEnabledLayerNames = validationLayers;
-	}
 
 	VkInstance instance;
 
@@ -760,6 +771,20 @@ int main(void) {
 		fprintf(stderr, "failed to create instance!\n");
 		return 1;
 	}
+
+#ifndef NDEBUG
+		PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
+		_assert(vkCreateDebugReportCallbackEXT != nil);
+
+		VkDebugReportCallbackCreateInfoEXT debugReportInfo = {};
+        debugReportInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;
+        debugReportInfo.pfnCallback = debugReportCallbackFunc;
+        debugReportInfo.pUserData = nil;
+
+		VkDebugReportCallbackEXT debugReportCallbackHandle = VK_NULL_HANDLE;
+
+		vkCheck(vkCreateDebugReportCallbackEXT(instance, &debugReportInfo, nil, &debugReportCallbackHandle));
+#endif
 
 	VkSurfaceKHR surface;
 	VkWin32SurfaceCreateInfoKHR win32SurfaceCreateInfo = {};
@@ -956,11 +981,6 @@ int main(void) {
 	deviceCreateInfo.enabledExtensionCount = requiredDeviceExtensionsCount;
 	deviceCreateInfo.ppEnabledExtensionNames = requiredDeviceExtensions;
 	deviceCreateInfo.enabledLayerCount = 0;
-
-	if (enableValidationLayers) {
-		deviceCreateInfo.enabledLayerCount = validationLayerCount;
-		deviceCreateInfo.ppEnabledLayerNames = validationLayers;
-	}
 
 	VkDevice device;
 	if (vkCreateDevice(physicalDevice, &deviceCreateInfo, nil, &device) != VK_SUCCESS) {
@@ -1459,19 +1479,19 @@ int main(void) {
 	vkCheck(vkCreateSampler(device, &nearestFilterSamplerInfo, nil, &nearestFilterSampler));
 
 
-	VkDescriptorPoolSize poolSizes [3] = {};
-	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[0].descriptorCount = MAX_FRAMES_IN_FLIGHT;
-	poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	poolSizes[1].descriptorCount = MAX_FRAMES_IN_FLIGHT;
-	poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	poolSizes[2].descriptorCount = MAX_FRAMES_IN_FLIGHT;
+	VkDescriptorPoolSize poolSizes [] = {
+		{ VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 100 },
+	};
 
 	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
 	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	descriptorPoolInfo.poolSizeCount = sizeof(poolSizes)/sizeof(poolSizes[0]);
 	descriptorPoolInfo.pPoolSizes = poolSizes;
-	descriptorPoolInfo.maxSets = 6;//2 for view projection data (uniform buffer), 2 for object data (storage buffer), 2 for textures
+	descriptorPoolInfo.maxSets = 7;//2 for view projection data (uniform buffer), 2 for object data (storage buffer), 2 for textures, 1 for imgui
 
 	VkDescriptorPool descriptorPool;
 	vkCheck(vkCreateDescriptorPool(device, &descriptorPoolInfo, nil, &descriptorPool));
@@ -1618,6 +1638,33 @@ int main(void) {
 		glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 	}
 
+	//setup Dear ImGui
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	ImGui::StyleColorsDark();
+	ImGui_ImplGlfw_InitForVulkan(window, true);
+	ImGui_ImplVulkan_InitInfo initInfo = {};
+	initInfo.Instance = instance;
+	initInfo.PhysicalDevice = physicalDevice;
+	initInfo.Device = device;
+	initInfo.QueueFamily = graphicsQueueFamilyIndex;
+	initInfo.Queue = graphicsQueue;
+	initInfo.PipelineCache = VK_NULL_HANDLE;
+	initInfo.DescriptorPool = descriptorPool;
+	initInfo.Subpass = 0;
+	initInfo.MinImageCount = swapchain.minImageCount;
+	initInfo.ImageCount = swapchain.imageCount;
+	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+	initInfo.Allocator = nil;
+	initInfo.CheckVkResultFn = vkCheck;
+	ImGui_ImplVulkan_Init(&initInfo, renderPass);
+
+	{
+		VkCommandBuffer commandBuffer = beginSingleTimeCommands(device, commandPool);
+		ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+		endSingleTimeCommands(device, commandBuffer, commandPool, graphicsQueue);
+	}
 
 	u64 frameCounter = -1;
 
@@ -1629,6 +1676,9 @@ int main(void) {
 
 	f32 cameraPitch = 0.0f;
 	f32 cameraYaw = -PI32/2;
+
+
+	bool showImGuiDemoWindow = true;
 
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
@@ -1844,6 +1894,41 @@ int main(void) {
 			vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 			vkCmdDraw(commandBuffers[frameCounter], 6, 1, cubeTopFaceOffset, i);
 		}
+
+        // Start the Dear ImGui frame
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+		if (showImGuiDemoWindow) {
+			ImGui::ShowDemoWindow(&showImGuiDemoWindow);
+		}
+        {
+            static float f = 0.0f;
+            static int counter = 0;
+
+            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+            ImGui::Checkbox("Demo Window", &showImGuiDemoWindow);      // Edit bools storing our window open/close state
+
+            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+            ImGui::ColorEdit3("clear color", (float*)&clearColor); // Edit 3 floats representing a color
+
+            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+                counter++;
+            ImGui::SameLine();
+            ImGui::Text("counter = %d", counter);
+
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            ImGui::End();
+        }
+
+        // Rendering
+        ImGui::Render();
+        ImDrawData* drawData = ImGui::GetDrawData();
+		ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffers[frameCounter]);
 
 		vkCmdEndRenderPass(commandBuffers[frameCounter]);
 
