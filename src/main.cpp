@@ -79,6 +79,8 @@ u32 findMemoryType(VkPhysicalDeviceMemoryProperties memoryProperties, u32 memory
 			return memoryTypeIndex;
 		}
 	}
+	panic();
+	return 0;
 }
 
 VkResult createShaderFromFile(VkDevice device , const char * shaderFilePath, VkShaderModule * shaderModule) {
@@ -1404,14 +1406,13 @@ int main(void) {
 	loadTextureImage("./assets/textures/sand.png", device, stagingBuffer, physicalDeviceMemoryProperties, commandPool, graphicsQueue, &textureImages[sandImageIndex]);
 
 	VoxelArray voxelArray = {};
-	voxelArray.capacity = maxVoxels;
-	voxelArray.voxels = (Voxel*)allocateMemory(memoryAllocator, voxelArray.capacity * sizeof(Voxel));
+	initVoxelArray(&voxelArray, memoryAllocator, maxVoxels, maxVoxels/16);
 	VoxelMaterial grassVoxelMaterial = { topGrassImageIndex, sideGrassImageIndex, dirtImageIndex, };
 	VoxelMaterial dirtVoxelMaterial = { dirtImageIndex, dirtImageIndex, dirtImageIndex, };
 	VoxelMaterial stoneVoxelMaterial = { stoneImageIndex, stoneImageIndex, stoneImageIndex };
 	VoxelMaterial sandVoxelMaterial = { sandImageIndex, sandImageIndex, sandImageIndex };
 
-	GPUObjectData* gpuObjects = (GPUObjectData*) allocateMemory(memoryAllocator, voxelArray.capacity * sizeof(GPUObjectData));
+	GPUObjectData* gpuObjects = (GPUObjectData*) allocateMemory(memoryAllocator, voxelArray.voxelsCapacity * sizeof(GPUObjectData));
 
 	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{12, 0, -30}, Vector3ui{ 8, 8, 8 });
 	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{-12, 0, -30}, Vector3ui{ 8, 8, 8 });
@@ -1420,6 +1421,17 @@ int main(void) {
 	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{36, 12, -30}, Vector3ui{ 8, 8, 1 });
 	addVoxel(&voxelArray, stoneVoxelMaterial, Vector3i{-10, 12, -30}, Vector3ui{ 8, 8, 8 });
 	addVoxel(&voxelArray, sandVoxelMaterial, Vector3i{10, 12, -30}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, sandVoxelMaterial, Vector3i{-24, 12, -30}, Vector3ui{ 1, 1, 1 });
+
+	{
+		u32 start = addVoxel(&voxelArray, sandVoxelMaterial, Vector3i{ 0, 0, 0 }, Vector3ui{ 2, 2, 2 });
+		addVoxel(&voxelArray, stoneVoxelMaterial, Vector3i{ 0, 2, 0 }, Vector3ui{ 2, 2, 2 });
+		addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{ 0, 4, 0 }, Vector3ui{ 2, 2, 2 });
+		addVoxel(&voxelArray, sandVoxelMaterial, Vector3i{ 0, 6, 0 }, Vector3ui{ 2, 2, 2 });
+		u32 end = addVoxel(&voxelArray, stoneVoxelMaterial, Vector3i{ 0, 8, 0 }, Vector3ui{ 2, 2, 2 });
+
+		addVoxelGroupFromVoxelRange(&voxelArray, start, end, math::Vector3{0, 0, -10.0f});
+	}
 
 	VkSamplerCreateInfo nearestFilterSamplerInfo = {};
 	nearestFilterSamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -1459,7 +1471,6 @@ int main(void) {
 
 	VkDescriptorPool descriptorPool;
 	vkCheck(vkCreateDescriptorPool(device, &descriptorPoolInfo, nil, &descriptorPool));
-
 
 	VkDescriptorSet uniformBufferDescriptorSets[MAX_FRAMES_IN_FLIGHT];
 	VkDescriptorSet objectDataDescriptorSets[MAX_FRAMES_IN_FLIGHT];
@@ -1771,36 +1782,48 @@ int main(void) {
 
 		memcpy(uniformBuffers[frameCounter].mappedData, &ub, sizeof(ub));
 
+		voxelArray.groups[0].rotation = math::initZAxisRotationMatrix(fmodf(glfwGetTime(), TAU32));
+
 		const f32 voxelUnitsToWorldUnits = 0.5;
-		for (u32 i = 0; i < voxelArray.size; i++) {
-			Voxel voxel = voxelArray.voxels[i];
-			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ (f32)voxel.position.x, (f32)voxel.position.y, (f32)voxel.position.z }.scale(voxelUnitsToWorldUnits));
-			model = math::scaleMatrix(model, math::Vector3{ (f32) voxel.scale.x, (f32) voxel.scale.y, (f32) voxel.scale.z }.scale(voxelUnitsToWorldUnits));
+		for (u32 i = 0; i < voxelArray.voxelsCount; i++) {
+			math::Vector3 worldPosition = math::Vector3{ (f32)voxelArray.voxelsPosition[i].x, (f32)voxelArray.voxelsPosition[i].y, (f32)voxelArray.voxelsPosition[i].z}.scale(voxelUnitsToWorldUnits);
+
+			math::Matrix4 model = math::initIdentityMatrix();
+			math::Matrix4 rotationMatrix = math::initIdentityMatrix();
+			if (voxelArray.voxelsGroupIndex[i] >= 0) {
+				voxelArray.groups[voxelArray.voxelsGroupIndex[i]].rotation;
+				worldPosition = worldPosition.add(voxelArray.groups[voxelArray.voxelsGroupIndex[i]].worldPosition);
+				rotationMatrix = voxelArray.groups[voxelArray.voxelsGroupIndex[i]].rotation;
+			}
+			model = math::translateMatrix(model, worldPosition);
+
+			model = math::scaleMatrix(model, math::Vector3{ (f32) voxelArray.voxelsScale[i].x, (f32)voxelArray.voxelsScale[i].y, (f32)voxelArray.voxelsScale[i].z}.scale(voxelUnitsToWorldUnits));
+			model = model.multiply(rotationMatrix);
 			gpuObjects[i] = GPUObjectData{
 				model
 			};
+
 		}
 
-		memcpy(objectBuffers[frameCounter].mappedData, gpuObjects, sizeof(GPUObjectData)*voxelArray.size);
+		memcpy(objectBuffers[frameCounter].mappedData, gpuObjects, sizeof(GPUObjectData)*voxelArray.voxelsCount);
 
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &uniformBufferDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 2, 1, &textureDescriptorSets[frameCounter], 0, nil);
 
-		for (u32 i = 0; i < voxelArray.size; i++) {
-			Voxel voxel = voxelArray.voxels[i];
-
+		for (u32 i = 0; i < voxelArray.voxelsCount; i++) {
 			TexturePushConstants tcp = {};
+			VoxelMaterial material = voxelArray.voxelsMaterial[i];
 
-			tcp.imageIndex = voxel.material.sideFaceTextureID;
+			tcp.imageIndex = material.sideFaceTextureID;
 			vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 			vkCmdDraw(commandBuffers[frameCounter], 24, 1, 0, i);
 
-			tcp.imageIndex = voxel.material.bottomFaceTextureID;
+			tcp.imageIndex = material.bottomFaceTextureID;
 			vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 			vkCmdDraw(commandBuffers[frameCounter], 6, 1, cubeBottomFaceOffset , i);
 
-			tcp.imageIndex = voxel.material.topFaceTextureID;
+			tcp.imageIndex = material.topFaceTextureID;
 			vkCmdPushConstants(commandBuffers[frameCounter], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
 			vkCmdDraw(commandBuffers[frameCounter], 6, 1, cubeTopFaceOffset, i);
 		}
