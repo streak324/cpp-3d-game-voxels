@@ -21,8 +21,8 @@ typedef u32 bool32;
 
 #define nil nullptr
 
-#define min(a, b) (a < b ? a : b)
-#define max(a, b) (a > b ? a : b)
+#define MIN(a, b) (a < b ? a : b)
+#define MAX(a, b) (a > b ? a : b)
 
 void _assert(u8 b);
 void panic();

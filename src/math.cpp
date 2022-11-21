@@ -206,8 +206,8 @@ namespace math {
 	Vector3 rotateVector(Vector3 a, Rotation rotation) {
 		_assert(isUnitVector(rotation.unit));
 		Quaternion q = {
-			cosf(0.5*rotation.angle),
-			rotation.unit.scale(sinf(0.5*rotation.angle)),
+			cosf(0.5f*rotation.angle),
+			rotation.unit.scale(sinf(0.5f*rotation.angle)),
 		};
 		Vector3 cross = q.vector.cross(a);
 		Vector3 crossV = q.vector.cross(cross);
@@ -218,8 +218,8 @@ namespace math {
 	Matrix4 createRotationMatrix(Rotation rotation) {
 		_assert(isUnitVector(rotation.unit));
 		Quaternion q = {
-			cosf(0.5*rotation.angle),
-			rotation.unit.scale(sinf(0.5*rotation.angle)),
+			cosf(0.5f*rotation.angle),
+			rotation.unit.scale(sinf(0.5f*rotation.angle)),
 		};
 		Matrix4 m = initIdentityMatrix();
 

@@ -116,7 +116,7 @@ VkResult createShaderFromFile(VkDevice device , const char * shaderFilePath, VkS
 	fclose(shaderFile);
 
 	if (bytesRead != shaderFileSize) {
-		printf("Error reading from file %s: read %dll bytes. expected %dll\n", shaderFilePath, bytesRead, shaderFileSize);
+		printf("Error reading from file %s: read %lld bytes. expected %lld\n", shaderFilePath, bytesRead, shaderFileSize);
 		return VK_ERROR_UNKNOWN;
 	}
 
@@ -430,15 +430,15 @@ VkResult createSwapchainAndRenderPass(
 			glfwGetFramebufferSize(window, &width, &height);
 			glfwWaitEvents();
 		}
-		swapchain->extent.width = max(min((u32) width, surfaceCapabilities.maxImageExtent.width), surfaceCapabilities.minImageExtent.width);
-		swapchain->extent.height = max(min((u32) height, surfaceCapabilities.maxImageExtent.height), surfaceCapabilities.minImageExtent.height);
+		swapchain->extent.width = MAX(MIN((u32) width, surfaceCapabilities.maxImageExtent.width), surfaceCapabilities.minImageExtent.width);
+		swapchain->extent.height = MAX(MIN((u32) height, surfaceCapabilities.maxImageExtent.height), surfaceCapabilities.minImageExtent.height);
 	} else {
 		swapchain->extent = surfaceCapabilities.currentExtent;
 	}
 
 	u32 minImageCount = 3;
 	if (surfaceCapabilities.maxImageCount > 0) {
-		minImageCount = max(minImageCount, surfaceCapabilities.maxImageCount);
+		minImageCount = MAX(minImageCount, surfaceCapabilities.maxImageCount);
 	}
 
 	if (depthImage->image != VK_NULL_HANDLE) {
@@ -1679,6 +1679,18 @@ int main(void) {
 
 
 	bool showImGuiDemoWindow = true;
+	bool isMovingCamera = true;
+	bool wasCameraToggleKeyPressed = false;
+
+	math::Vector3 cameraDirection = {
+		cosf(cameraYaw) * cosf(cameraPitch),
+		sinf(cameraPitch),
+		sinf(cameraYaw) * cosf(cameraPitch),
+	};
+
+
+	VkClearValue clearColor = {};
+	clearColor.color = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
@@ -1697,26 +1709,10 @@ int main(void) {
 		lastCursorY = cursorY;
 		glfwGetCursorPos(window, &cursorX, &cursorY);
 
-		f32 deltaCursorX = cursorX - lastCursorX;
-		f32 deltaCursorY = -(cursorY - lastCursorY);
+		f32 deltaCursorX = (f32) (cursorX - lastCursorX);
+		f32 deltaCursorY = (f32) - (cursorY - lastCursorY);
 
-		cameraYaw += deltaCursorX / 100.0f;
-		cameraPitch += deltaCursorY / 100.0f;
-		f32 minPitch = -0.5*PI32+math::radians(1);
-		f32 maxPitch = 0.5*PI32-math::radians(1);
-		if (cameraPitch < minPitch) {
-			cameraPitch = minPitch;
-		} else if (cameraPitch > maxPitch) {
-			cameraPitch = maxPitch;
-		}
-
-		math::Vector3 cameraDirection = {
-			cosf(cameraYaw) * cosf(cameraPitch),
-			sinf(cameraPitch),
-			sinf(cameraYaw) * cosf(cameraPitch),
-		};
-
-		f32 timestep = fminf(max_timestep, glfwGetTime() - lastFrameDelta);
+		f32 timestep = fminf(max_timestep, (f32) (glfwGetTime() - lastFrameDelta));
 
 		math::Vector3 cameraForwardUnitVelocity = {};
 		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
@@ -1737,7 +1733,38 @@ int main(void) {
 		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
 			cameraForwardUnitVelocity.y += 1;
 		}
-		{
+		if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS) {
+			if (!wasCameraToggleKeyPressed) {
+				isMovingCamera = !isMovingCamera;
+				if (isMovingCamera) {
+					glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+				}
+				else {
+					glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+				}
+			}
+			wasCameraToggleKeyPressed = true;
+		} else if (glfwGetKey(window, GLFW_KEY_O) == GLFW_RELEASE) {
+			wasCameraToggleKeyPressed = false;
+		}
+
+		if (isMovingCamera) {
+			cameraYaw += deltaCursorX / 100.0f;
+			cameraPitch += deltaCursorY / 100.0f;
+			f32 minPitch = -0.5f*PI32+math::radians(1);
+			f32 maxPitch = 0.5f*PI32-math::radians(1);
+			if (cameraPitch < minPitch) {
+				cameraPitch = minPitch;
+			} else if (cameraPitch > maxPitch) {
+				cameraPitch = maxPitch;
+			}
+
+			cameraDirection = {
+				cosf(cameraYaw) * cosf(cameraPitch),
+				sinf(cameraPitch),
+				sinf(cameraYaw) * cosf(cameraPitch),
+			};
+
 			f32 cameraSpeed = 5;
 			f32 distanceSquared = cameraForwardUnitVelocity.dot(cameraForwardUnitVelocity);
 			if (distanceSquared > (1/1024.0f)) {
@@ -1799,8 +1826,6 @@ int main(void) {
 		renderPassBeginInfo.renderArea.offset = {0, 0};
 		renderPassBeginInfo.renderArea.extent = swapchain.extent;
 
-		VkClearValue clearColor = {};
-		clearColor.color = { 0.0f, 0.0f, 0.0f, 1.0f };
 		VkClearValue clearDepth = {};
 		clearDepth.depthStencil = {1.0f, 0};
 		VkClearValue clearValues[2] = {clearColor, clearDepth};
@@ -1837,16 +1862,16 @@ int main(void) {
 		memcpy(uniformBuffers[frameCounter].mappedData, &ub, sizeof(ub));
 
 		voxelArray.groups[0].rotation.unit = math::Vector3{ 1.0f, 0.0f, 0.0f };
-		voxelArray.groups[0].rotation.angle = fmodf(glfwGetTime(), TAU32);
+		voxelArray.groups[0].rotation.angle = fmodf((float) glfwGetTime(), TAU32);
 
 		voxelArray.groups[1].rotation.unit = math::Vector3{ 0.0f, 1.0f, 0.0f };
-		voxelArray.groups[1].rotation.angle = fmodf(glfwGetTime(), TAU32);
+		voxelArray.groups[1].rotation.angle = fmodf((float) glfwGetTime(), TAU32);
 
 		voxelArray.groups[2].rotation.unit = math::Vector3{ 1.0f, 0.0f, 1.0f }.normalize();
-		voxelArray.groups[2].rotation.angle = fmodf(glfwGetTime(), TAU32);
+		voxelArray.groups[2].rotation.angle = fmodf((float) glfwGetTime(), TAU32);
 
 		const f32 voxelUnitsToWorldUnits = 0.5;
-		for (u32 i = 0; i < voxelArray.voxelsCount; i++) {
+		for (i32 i = 0; i < voxelArray.voxelsCount; i++) {
 			math::Vector3 worldPosition = math::Vector3{ (f32)voxelArray.voxelsPosition[i].x, (f32)voxelArray.voxelsPosition[i].y, (f32)voxelArray.voxelsPosition[i].z}.scale(voxelUnitsToWorldUnits);
 
 			/* TODO:
@@ -1878,7 +1903,7 @@ int main(void) {
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 2, 1, &textureDescriptorSets[frameCounter], 0, nil);
 
-		for (u32 i = 0; i < voxelArray.voxelsCount; i++) {
+		for (i32 i = 0; i < voxelArray.voxelsCount; i++) {
 			TexturePushConstants tcp = {};
 			VoxelMaterial material = voxelArray.voxelsMaterial[i];
 
