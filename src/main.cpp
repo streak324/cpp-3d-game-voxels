@@ -650,21 +650,22 @@ VkResult createSwapchainAndRenderPass(
 }
 
 int main(void) {
+	f64 loadStartTime = glfwGetTime();
 	#ifndef NDEBUG
 		printf("IN DEBUG MODE\n");
 	#endif
+
+	/* Initialize the library */
+	if (!glfwInit()) {
+		printf("unable to initialize glfw!\n");
+		return 1;
+	}
 
 	MemoryAllocator* memoryAllocator;
 	{
 		MemoryAllocator tmp;
 		initMemoryAllocator(&tmp, gigabyte(2));
 		memoryAllocator = &tmp;
-	}
-
-	/* Initialize the library */
-	if (!glfwInit()) {
-		printf("unable to initialize glfw!\n");
-		return 1;
 	}
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -807,23 +808,25 @@ int main(void) {
 	VkPhysicalDevice * availableDevices = (VkPhysicalDevice *) _malloca(deviceCount * sizeof(VkPhysicalDevice));
 	vkEnumeratePhysicalDevices(instance, &deviceCount, availableDevices);
 
-	u32 pickedDeviceIndex = -1;
-	for (;;) {
-		printf("Pick GPU to use from %d to %d:\n", 1, deviceCount);
-		for (u32 i = 0; i < deviceCount; i++) {
-			VkPhysicalDeviceProperties physicalDeviceProperties;
-			vkGetPhysicalDeviceProperties(availableDevices[i], &physicalDeviceProperties);
-			printf("[%d] - %s\n",  i+1, physicalDeviceProperties.deviceName);
-		}
-		printf("Choice: ");
+	u32 pickedDeviceIndex = 0;
+	if (deviceCount > 1) {
+		for (;;) {
+			printf("Pick GPU to use from %d to %d:\n", 1, deviceCount);
+			for (u32 i = 0; i < deviceCount; i++) {
+				VkPhysicalDeviceProperties physicalDeviceProperties;
+				vkGetPhysicalDeviceProperties(availableDevices[i], &physicalDeviceProperties);
+				printf("[%d] - %s\n", i + 1, physicalDeviceProperties.deviceName);
+			}
+			printf("Choice: ");
 
-		const u32 userInputBufferSize = 32;
-		char userInput[userInputBufferSize] = {};
-		fgets(userInput, userInputBufferSize, stdin);
+			const u32 userInputBufferSize = 32;
+			char userInput[userInputBufferSize] = {};
+			fgets(userInput, userInputBufferSize, stdin);
 
-		pickedDeviceIndex = atoi(userInput) - 1;
-		if (pickedDeviceIndex >= 0 && pickedDeviceIndex < deviceCount) {
-			break;
+			pickedDeviceIndex = atoi(userInput) - 1;
+			if (pickedDeviceIndex >= 0 && pickedDeviceIndex < deviceCount) {
+				break;
+			}
 		}
 	}
 
@@ -837,6 +840,7 @@ int main(void) {
 
 	VkPhysicalDeviceProperties physicalDeviceProperties;
 	vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+	printf("Using GPU Device: %s\n", physicalDeviceProperties.deviceName);
 
 	VkPhysicalDeviceFeatures2 deviceFeatures = {};
 	deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -1692,6 +1696,7 @@ int main(void) {
 	VkClearValue clearColor = {};
 	clearColor.color = { 0.0f, 0.0f, 0.0f, 1.0f };
 
+	printf("%f seconds to bootup", (f32) glfwGetTime() - loadStartTime);
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
 		frameCounter = (frameCounter + 1) % MAX_FRAMES_IN_FLIGHT;
