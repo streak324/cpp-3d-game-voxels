@@ -14,5 +14,5 @@ layout(push_constant) uniform object {
 } pc;
 
 void main() {
-	outColor = fragColor;// * texture(sampler2D(textures[pc.imageIndex], samp), fragTexCoord);
+	outColor = fragColor * texture(sampler2D(textures[pc.imageIndex], samp), fragTexCoord);
 }
