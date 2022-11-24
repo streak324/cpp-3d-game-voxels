@@ -1632,7 +1632,7 @@ int main(void) {
 
 	f64 lastFrameDelta = glfwGetTime();
 	const f32 max_timestep = 1.0f / 60.0f;
-	math::Vector3 cameraPosition = {};
+	math::Vector3 cameraPosition = {0.0f, 2.0f, 2.0f};
 	math::Vector3 negativeZAxis = {0.0f, 0.0f, -1.0f};
 	
 	/* Make the window's context current */
@@ -1678,20 +1678,23 @@ int main(void) {
 	lastCursorY = cursorX;
 	lastCursorY = cursorY;
 
-	f32 cameraPitch = 0.0f;
-	f32 cameraYaw = -PI32/2;
-
-
-	bool showImGuiDemoWindow = true;
+	bool showImGuiDemoWindow = false;
 	bool isMovingCamera = true;
 	bool wasCameraToggleKeyPressed = false;
 
+	bool isDisplayingGrid = true;
+
+	i32 voxelGridUnitSize = 8;
+	i32 voxelGridWidth = 1;
+	i32 voxelGridHeight = 2;
+
+	f32 cameraPitch = 0.0f;
+	f32 cameraYaw = -PI32/2;
 	math::Vector3 cameraDirection = {
 		cosf(cameraYaw) * cosf(cameraPitch),
 		sinf(cameraPitch),
 		sinf(cameraYaw) * cosf(cameraPitch),
 	};
-
 
 	VkClearValue clearColor = {};
 	clearColor.color = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -1875,7 +1878,8 @@ int main(void) {
 		voxelArray.groups[2].rotation.unit = math::Vector3{ 1.0f, 0.0f, 1.0f }.normalize();
 		voxelArray.groups[2].rotation.angle = fmodf((float) glfwGetTime(), TAU32);
 
-		const f32 voxelUnitsToWorldUnits = 0.5;
+		const f32 voxelUnitsToWorldUnits = 0.25f;
+		u32 objectCount = voxelArray.voxelsCount;
 		for (i32 i = 0; i < voxelArray.voxelsCount; i++) {
 			math::Vector3 worldPosition = math::Vector3{ (f32)voxelArray.voxelsPosition[i].x, (f32)voxelArray.voxelsPosition[i].y, (f32)voxelArray.voxelsPosition[i].z}.scale(voxelUnitsToWorldUnits);
 
@@ -1899,10 +1903,30 @@ int main(void) {
 			gpuObjects[i] = GPUObjectData{
 				model
 			};
-
 		}
 
-		memcpy(objectBuffers[frameCounter].mappedData, gpuObjects, sizeof(GPUObjectData)*voxelArray.voxelsCount);
+		f32 lineThickness = 0.06125f;
+		for (i32 i = 0; i < voxelGridWidth+1; i++) {
+			f32 zLength = -(f32) (voxelGridHeight * voxelGridUnitSize) * voxelUnitsToWorldUnits;
+			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ (f32) (voxelGridUnitSize * i) * voxelUnitsToWorldUnits , 0.0f, 0.5f * zLength });
+			model = math::scaleMatrix(model, math::Vector3{ lineThickness, lineThickness, (f32) zLength });
+			gpuObjects[objectCount] = GPUObjectData{ 
+				model 
+			};
+			objectCount += 1;
+		}
+
+		for (i32 i = 0; i < voxelGridHeight+1; i++) {
+			f32 columnLength = (f32)(voxelGridWidth * voxelGridUnitSize) * voxelUnitsToWorldUnits;
+			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.5f * columnLength, 0.0f, -(f32)(voxelGridUnitSize * i) * voxelUnitsToWorldUnits});
+			model = math::scaleMatrix(model, math::Vector3{columnLength, lineThickness, lineThickness });
+			gpuObjects[objectCount] = GPUObjectData{ 
+				model 
+			};
+			objectCount += 1;
+		}
+
+		memcpy(objectBuffers[frameCounter].mappedData, gpuObjects, sizeof(GPUObjectData)*objectCount);
 
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &uniformBufferDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);
@@ -1925,6 +1949,8 @@ int main(void) {
 			vkCmdDraw(commandBuffers[frameCounter], 6, 1, cubeTopFaceOffset, i);
 		}
 
+		vkCmdDraw(commandBuffers[frameCounter], 36, voxelGridWidth + voxelGridHeight+2, 0, voxelArray.voxelsCount);
+
         // Start the Dear ImGui frame
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -1945,6 +1971,14 @@ int main(void) {
 
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
             ImGui::ColorEdit3("clear color", (float*)&clearColor); // Edit 3 floats representing a color
+
+			ImGui::InputInt("Voxel Grid Width", &voxelGridWidth);
+			ImGui::InputInt("Voxel Grid Height", &voxelGridHeight);
+			ImGui::InputInt("Voxel Grid Cell Size", &voxelGridUnitSize);
+
+			voxelGridWidth = MIN(MAX(1, voxelGridWidth), 1024);
+			voxelGridHeight = MIN(MAX(1, voxelGridHeight), 1024);
+			voxelGridUnitSize = MIN(MAX(1, voxelGridUnitSize), 8);
 
             if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
