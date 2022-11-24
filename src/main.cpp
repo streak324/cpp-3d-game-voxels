@@ -61,10 +61,6 @@ struct UniformBufferData {
 	math::Matrix4 projection;
 };
 
-struct RGBAColorF32 {
-	f32 r, b, g, a;
-};
-
 struct GPUObjectData {
 	math::Matrix4* models;
 	RGBAColorF32* rgbaColors;
@@ -1718,35 +1714,33 @@ int main(void) {
 
 	VoxelArray voxelArray = {};
 	initVoxelArray(&voxelArray, memoryAllocator, maxVoxels, maxVoxels/16);
-	VoxelMaterial grassVoxelMaterial = { topGrassImageIndex, sideGrassImageIndex, dirtImageIndex, };
-	VoxelMaterial dirtVoxelMaterial = { dirtImageIndex, dirtImageIndex, dirtImageIndex, };
-	VoxelMaterial stoneVoxelMaterial = { stoneImageIndex, stoneImageIndex, stoneImageIndex };
-	VoxelMaterial sandVoxelMaterial = { sandImageIndex, sandImageIndex, sandImageIndex };
 
 	GPUObjectData gpuObjectData = {};
 	gpuObjectData.models = (math::Matrix4*) allocateMemory(memoryAllocator, voxelArray.voxelsCapacity * sizeof(math::Matrix4));
 	gpuObjectData.rgbaColors = (RGBAColorF32*) allocateMemory(memoryAllocator, voxelArray.voxelsCapacity * sizeof(RGBAColorF32));
 	gpuObjectData.count = 0;
 
-	i32 g1 = addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 0, 0}, Vector3ui{ 8, 8, 8 });
-	i32 g2 = addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 0, 0}, Vector3ui{ 8, 8, 8 });
+	RGBAColorF32 colorWhite = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+	i32 g1 = addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 0, 0 }, Vector3ui{ 8, 8, 8 });
+	i32 g2 = addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 0, 0 }, Vector3ui{ 8, 8, 8 });
 
 	addVoxelGroupFromVoxelRange(&voxelArray, g1, g1, math::Vector3{ 6, 0, -16 });
 	addVoxelGroupFromVoxelRange(&voxelArray, g2, g2, math::Vector3{ -6, 0, -16 });
 
-	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 12, -40}, Vector3ui{ 8, 8, 8 });
-	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{24, 12, -30}, Vector3ui{ 8, 8, 2 });
-	addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{36, 12, -30}, Vector3ui{ 8, 8, 1 });
-	addVoxel(&voxelArray, stoneVoxelMaterial, Vector3i{-10, 12, -30}, Vector3ui{ 8, 8, 8 });
-	addVoxel(&voxelArray, sandVoxelMaterial, Vector3i{10, 12, -30}, Vector3ui{ 8, 8, 8 });
-	addVoxel(&voxelArray, sandVoxelMaterial, Vector3i{-24, 12, -30}, Vector3ui{ 1, 1, 1 });
+	addVoxel(&voxelArray, colorWhite, Vector3i{0, 12, -40}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, colorWhite, Vector3i{24, 12, -30}, Vector3ui{ 8, 8, 2 });
+	addVoxel(&voxelArray, colorWhite, Vector3i{36, 12, -30}, Vector3ui{ 8, 8, 1 });
+	addVoxel(&voxelArray, colorWhite, Vector3i{-10, 12, -30}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, colorWhite, Vector3i{10, 12, -30}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, colorWhite, Vector3i{-24, 12, -30}, Vector3ui{ 1, 1, 1 });
 
 	{
-		u32 start = addVoxel(&voxelArray, sandVoxelMaterial, Vector3i{ 0, 0, 0 }, Vector3ui{ 2, 2, 2 });
-		addVoxel(&voxelArray, stoneVoxelMaterial, Vector3i{ 0, 2, 0 }, Vector3ui{ 2, 2, 2 });
-		addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{ 0, 4, 0 }, Vector3ui{ 2, 2, 2 });
-		addVoxel(&voxelArray, sandVoxelMaterial, Vector3i{ 0, 6, 0 }, Vector3ui{ 2, 2, 2 });
-		u32 end = addVoxel(&voxelArray, stoneVoxelMaterial, Vector3i{ 0, 8, 0 }, Vector3ui{ 2, 2, 2 });
+		u32 start = addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 0, 0 }, Vector3ui{ 2, 2, 2 });
+		addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 2, 0 }, Vector3ui{ 2, 2, 2 });
+		addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 4, 0 }, Vector3ui{ 2, 2, 2 });
+		addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 6, 0 }, Vector3ui{ 2, 2, 2 });
+		u32 end = addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 8, 0 }, Vector3ui{ 2, 2, 2 });
 
 		addVoxelGroupFromVoxelRange(&voxelArray, start, end, math::Vector3{0, 0, -10.0f});
 	}
@@ -1987,8 +1981,8 @@ int main(void) {
 	bool isDisplayingGrid = true;
 
 	i32 voxelGridUnitSize = 8;
-	i32 voxelGridWidth = 1;
-	i32 voxelGridHeight = 2;
+	i32 voxelGridWidth = 64;
+	i32 voxelGridHeight = 32;
 
 	f32 cameraPitch = 0.0f;
 	f32 cameraYaw = -PI32/2;
@@ -2198,7 +2192,7 @@ int main(void) {
 
 			model = math::scaleMatrix(model, math::Vector3{ (f32)voxelArray.voxelsScale[i].x, (f32)voxelArray.voxelsScale[i].y, (f32)voxelArray.voxelsScale[i].z }.scale(voxelUnitsToWorldUnits));
 			gpuObjectData.models[gpuObjectData.count] = model;
-			gpuObjectData.rgbaColors[gpuObjectData.count] = { 1.0f, 1.0f, 1.0f, 1.0f };
+			gpuObjectData.rgbaColors[gpuObjectData.count] = voxelArray.colors[i];
 			gpuObjectData.count += 1;
 		}
 
@@ -2223,31 +2217,7 @@ int main(void) {
 		}
 
 		memcpy(objectTransformBuffers[frameCounter].mappedData, gpuObjectData.models, sizeof(math::Matrix4)*gpuObjectData.count);
-		memcpy(objectColorBuffers[frameCounter].mappedData, gpuObjectData.rgbaColors, sizeof(math::Matrix4)*gpuObjectData.count);
-
-		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, texturePipelineLayout, 0, 1, &uniformBufferDescriptorSets[frameCounter], 0, nil);
-		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, texturePipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);
-		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, texturePipelineLayout, 2, 1, &textureDescriptorSets[frameCounter], 0, nil);
-
-
-		vkCmdBindPipeline(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, texturePipeline);
-
-		for (i32 i = 0; i < voxelArray.voxelsCount; i++) {
-			TexturePushConstants tcp = {};
-			VoxelMaterial material = voxelArray.voxelsMaterial[i];
-
-			tcp.imageIndex = material.sideFaceTextureID;
-			vkCmdPushConstants(commandBuffers[frameCounter], texturePipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
-			vkCmdDraw(commandBuffers[frameCounter], 24, 1, 0, i);
-
-			tcp.imageIndex = material.bottomFaceTextureID;
-			vkCmdPushConstants(commandBuffers[frameCounter], texturePipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
-			vkCmdDraw(commandBuffers[frameCounter], 6, 1, cubeBottomFaceOffset , i);
-
-			tcp.imageIndex = material.topFaceTextureID;
-			vkCmdPushConstants(commandBuffers[frameCounter], texturePipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(TexturePushConstants), &tcp);
-			vkCmdDraw(commandBuffers[frameCounter], 6, 1, cubeTopFaceOffset, i);
-		}
+		memcpy(objectColorBuffers[frameCounter].mappedData, gpuObjectData.rgbaColors, sizeof(RGBAColorF32)*gpuObjectData.count);
 
 		vkCmdBindPipeline(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, voxelPipeline);
 
@@ -2259,7 +2229,7 @@ int main(void) {
 			vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &cubeVertexBuffer.buffer, offsets);
 		}
 
-		vkCmdDraw(commandBuffers[frameCounter], 36, voxelGridWidth + voxelGridHeight+2, 0, voxelArray.voxelsCount);
+		vkCmdDraw(commandBuffers[frameCounter], 36, gpuObjectData.count, 0, 0);
 
         // Start the Dear ImGui frame
         ImGui_ImplVulkan_NewFrame();

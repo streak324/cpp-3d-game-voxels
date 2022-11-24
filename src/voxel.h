@@ -5,10 +5,9 @@
 #include "math.h"
 #include "memory.h"
 
-struct VoxelMaterial {
-	int topFaceTextureID;
-	int sideFaceTextureID;
-	int bottomFaceTextureID;
+
+struct RGBAColorF32 {
+	f32 r, b, g, a;
 };
 
 struct Vector3i {
@@ -35,7 +34,7 @@ struct VoxelArray {
 	i32 voxelsCapacity;
 	i32 voxelsCount;
 
-	VoxelMaterial* voxelsMaterial;
+	RGBAColorF32* colors;
 	Vector3i* voxelsPosition;
 	Vector3ui* voxelsScale;
 	i32* voxelsGroupIndex;
@@ -47,7 +46,7 @@ struct VoxelArray {
 };
 
 void initVoxelArray(VoxelArray* voxelArray, MemoryAllocator* memoryAllocator, i32 voxelCapacity, i32 groupsCapacity);
-i32 addVoxel(VoxelArray* voxelArray, VoxelMaterial material, Vector3i position, Vector3ui scale);
+i32 addVoxel(VoxelArray* voxelArray, RGBAColorF32 color, Vector3i position, Vector3ui scale);
 i32 addVoxelGroupFromVoxelRange(VoxelArray* voxelArray, u32 start, u32 end, math::Vector3 worldPosition);
 
 #endif
