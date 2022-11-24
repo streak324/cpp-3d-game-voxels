@@ -1346,31 +1346,21 @@ int main(void) {
 
 		VkVertexInputBindingDescription bindingDescription = {};
 		bindingDescription.binding = 0;
-		bindingDescription.stride = sizeof(PositionColorTextureVertex);
+		bindingDescription.stride = sizeof(PositionVertex);
 		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-		VkVertexInputAttributeDescription positionColorAttributeDescriptions[3] = {};
+		VkVertexInputAttributeDescription positionColorAttributeDescriptions[1] = {};
 
 		positionColorAttributeDescriptions[0].binding = 0;
 		positionColorAttributeDescriptions[0].location = 0;
 		positionColorAttributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		positionColorAttributeDescriptions[0].offset = offsetof(PositionColorTextureVertex, position);
-
-		positionColorAttributeDescriptions[1].binding = 0;
-		positionColorAttributeDescriptions[1].location = 1;
-		positionColorAttributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-		positionColorAttributeDescriptions[1].offset = offsetof(PositionColorTextureVertex, color);
-
-		positionColorAttributeDescriptions[2].binding = 0;
-		positionColorAttributeDescriptions[2].location = 2;
-		positionColorAttributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-		positionColorAttributeDescriptions[2].offset = offsetof(PositionColorTextureVertex, textureCoordinates);
+		positionColorAttributeDescriptions[0].offset = offsetof(PositionVertex, position);
 
 		VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
 		vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
 		vertexInputStateCreateInfo.pVertexBindingDescriptions = &bindingDescription;
-		vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 3;
+		vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 1;
 		vertexInputStateCreateInfo.pVertexAttributeDescriptions = positionColorAttributeDescriptions;
 
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
@@ -1667,6 +1657,35 @@ int main(void) {
 		vkQueueWaitIdle(graphicsQueue);
 	}
 
+	{
+		vkResetCommandBuffer(copyDataCmdBuffer, 0);
+
+		void *data;
+		vkMapMemory(device, stagingBuffer.memory, 0, stagingBuffer.size, 0, &data);
+		memcpy(data, positionCubeVertices, sizeof(positionCubeVertices));
+		vkUnmapMemory(device, stagingBuffer.memory);
+
+		VkCommandBufferBeginInfo beginInfo = {};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+		vkBeginCommandBuffer(copyDataCmdBuffer, &beginInfo);
+
+		VkBufferCopy copyRegion = {};
+		copyRegion.srcOffset = 0;
+		copyRegion.dstOffset = 0;
+		copyRegion.size = sizeof(positionCubeVertices);
+		vkCmdCopyBuffer(copyDataCmdBuffer, stagingBuffer.buffer, cubeVertexBuffer.buffer, 1, &copyRegion);
+		vkEndCommandBuffer(copyDataCmdBuffer);
+
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &copyDataCmdBuffer;
+
+		vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+		vkQueueWaitIdle(graphicsQueue);
+	}
+
 	Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
 	Buffer objectTransformBuffers[MAX_FRAMES_IN_FLIGHT];
 	Buffer objectColorBuffers[MAX_FRAMES_IN_FLIGHT];
@@ -1707,7 +1726,7 @@ int main(void) {
 	GPUObjectData gpuObjectData = {};
 	gpuObjectData.models = (math::Matrix4*) allocateMemory(memoryAllocator, voxelArray.voxelsCapacity * sizeof(math::Matrix4));
 	gpuObjectData.rgbaColors = (RGBAColorF32*) allocateMemory(memoryAllocator, voxelArray.voxelsCapacity * sizeof(RGBAColorF32));
-	gpuObjectData.count = voxelArray.voxelsCapacity;
+	gpuObjectData.count = 0;
 
 	i32 g1 = addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 0, 0}, Vector3ui{ 8, 8, 8 });
 	i32 g2 = addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 0, 0}, Vector3ui{ 8, 8, 8 });
@@ -1982,7 +2001,7 @@ int main(void) {
 	VkClearValue clearColor = {};
 	clearColor.color = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-	printf("%f seconds to bootup", (f32) glfwGetTime() - loadStartTime);
+	printf("%f seconds to bootup\n", (f32) glfwGetTime() - loadStartTime);
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
 		frameCounter = (frameCounter + 1) % MAX_FRAMES_IN_FLIGHT;
@@ -2125,8 +2144,6 @@ int main(void) {
 
 		vkCmdBeginRenderPass(commandBuffers[frameCounter], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		vkCmdBindPipeline(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, texturePipeline);
-
 		VkViewport viewport = {};
 		viewport.x = 0.0f;
 		viewport.y = (float) swapchain.extent.height;
@@ -2185,11 +2202,35 @@ int main(void) {
 			gpuObjectData.count += 1;
 		}
 
+
+		f32 lineThickness = 0.06125f;
+		for (i32 i = 0; i < voxelGridWidth+1; i++) {
+			f32 zLength = -(f32) (voxelGridHeight * voxelGridUnitSize) * voxelUnitsToWorldUnits;
+			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ (f32) (voxelGridUnitSize * i) * voxelUnitsToWorldUnits , 0.0f, 0.5f * zLength });
+			model = math::scaleMatrix(model, math::Vector3{ lineThickness, lineThickness, (f32) zLength });
+			gpuObjectData.models[gpuObjectData.count] = model;
+			gpuObjectData.rgbaColors[gpuObjectData.count] = {1.0f, 0.0f, 0.0f, 1.0f};
+			gpuObjectData.count += 1;
+		}
+
+		for (i32 i = 0; i < voxelGridHeight+1; i++) {
+			f32 columnLength = (f32)(voxelGridWidth * voxelGridUnitSize) * voxelUnitsToWorldUnits;
+			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.5f * columnLength, 0.0f, -(f32)(voxelGridUnitSize * i) * voxelUnitsToWorldUnits});
+			model = math::scaleMatrix(model, math::Vector3{columnLength, lineThickness, lineThickness });
+			gpuObjectData.models[gpuObjectData.count] = model;
+			gpuObjectData.rgbaColors[gpuObjectData.count] = {1.0f, 0.0f, 0.0f, 1.0f};
+			gpuObjectData.count += 1;
+		}
+
+		memcpy(objectTransformBuffers[frameCounter].mappedData, gpuObjectData.models, sizeof(math::Matrix4)*gpuObjectData.count);
+		memcpy(objectColorBuffers[frameCounter].mappedData, gpuObjectData.rgbaColors, sizeof(math::Matrix4)*gpuObjectData.count);
+
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, texturePipelineLayout, 0, 1, &uniformBufferDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, texturePipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, texturePipelineLayout, 2, 1, &textureDescriptorSets[frameCounter], 0, nil);
 
-		memcpy(objectTransformBuffers[frameCounter].mappedData, gpuObjectData.models, sizeof(math::Matrix4)*gpuObjectData.count);
+
+		vkCmdBindPipeline(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, texturePipeline);
 
 		for (i32 i = 0; i < voxelArray.voxelsCount; i++) {
 			TexturePushConstants tcp = {};
@@ -2208,40 +2249,17 @@ int main(void) {
 			vkCmdDraw(commandBuffers[frameCounter], 6, 1, cubeTopFaceOffset, i);
 		}
 
+		vkCmdBindPipeline(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, voxelPipeline);
 
-		//vkCmdBindPipeline(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, voxelPipeline);
+		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, voxelPipelineLayout, 0, 1, &uniformBufferDescriptorSets[frameCounter], 0, nil);
+		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, voxelPipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);
 
-		//ub.view = math::lookAt(cameraPosition, cameraPosition.add(cameraDirection), math::Vector3{0.0f, 1.0f, 0.0f});
-		//ub.projection = math::createPerspective(math::radians(90.0f), (f32)swapchain.extent.width/(f32)swapchain.extent.height, 0.1f, 100.0f);
+		{
+			VkDeviceSize offsets[] = { 0 };
+			vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &cubeVertexBuffer.buffer, offsets);
+		}
 
-		//{
-		//	VkDeviceSize offsets[] = { 0 };
-		//	vkCmdBindVertexBuffers(commandBuffers[frameCounter], 0, 1, &cubeVertexBuffer.buffer, offsets);
-		//}
-
-
-		//f32 lineThickness = 0.06125f;
-		//for (i32 i = 0; i < voxelGridWidth+1; i++) {
-		//	f32 zLength = -(f32) (voxelGridHeight * voxelGridUnitSize) * voxelUnitsToWorldUnits;
-		//	math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ (f32) (voxelGridUnitSize * i) * voxelUnitsToWorldUnits , 0.0f, 0.5f * zLength });
-		//	model = math::scaleMatrix(model, math::Vector3{ lineThickness, lineThickness, (f32) zLength });
-		//	gpuObjectData.models[gpuObjectData.count] = model;
-		//	gpuObjectData.rgbaColors[gpuObjectData.count] = 0xffffffff;
-		//	gpuObjectData.count += 1;
-		//}
-
-		//for (i32 i = 0; i < voxelGridHeight+1; i++) {
-		//	f32 columnLength = (f32)(voxelGridWidth * voxelGridUnitSize) * voxelUnitsToWorldUnits;
-		//	math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.5f * columnLength, 0.0f, -(f32)(voxelGridUnitSize * i) * voxelUnitsToWorldUnits});
-		//	model = math::scaleMatrix(model, math::Vector3{columnLength, lineThickness, lineThickness });
-		//	gpuObjectData.models[gpuObjectData.count] = model;
-		//	gpuObjectData.rgbaColors[gpuObjectData.count] = 0xffffffff;
-		//	gpuObjectData.count += 1;
-		//}
-
-		//memcpy(objectBuffers[frameCounter].mappedData, gpuObjectData.models, sizeof(math::Matrix4)*gpuObjectData.count);
-
-		//vkCmdDraw(commandBuffers[frameCounter], 36, voxelGridWidth + voxelGridHeight+2, 0, voxelArray.voxelsCount);
+		vkCmdDraw(commandBuffers[frameCounter], 36, voxelGridWidth + voxelGridHeight+2, 0, voxelArray.voxelsCount);
 
         // Start the Dear ImGui frame
         ImGui_ImplVulkan_NewFrame();
@@ -2304,7 +2322,8 @@ int main(void) {
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = &renderFinishedSemaphores[frameCounter];
 
-		if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[frameCounter]) != VK_SUCCESS) {
+		VkResult submitResult = vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[frameCounter]);
+		if (submitResult != VK_SUCCESS) {
 			printf("unable to submit to queue!\n");
 			return 1;
 		}
