@@ -12,8 +12,8 @@ layout (set=0, binding = 0) uniform UniformBuffer {
 struct ObjectData {
 	mat4 model;
 };
-struct RGBA8BitColor {
-	highp ivec4 rgbaColor;
+struct RGBAColor {
+	vec4 color;
 };
 
 layout (std140,set = 1, binding = 0) readonly buffer ObjectBuffer{
@@ -21,7 +21,7 @@ layout (std140,set = 1, binding = 0) readonly buffer ObjectBuffer{
 } objectBuffer;
 
 layout (std140,set = 1, binding = 1) readonly buffer ColorBuffer{
-	RGBA8BitColor colors[];
+	RGBAColor colors[];
 } colorBuffer;
 
 void main() {

@@ -61,11 +61,13 @@ struct UniformBufferData {
 	math::Matrix4 projection;
 };
 
-typedef u32 RGBA8Color;
+struct RGBAColorF32 {
+	f32 r, b, g, a;
+};
 
 struct GPUObjectData {
 	math::Matrix4* models;
-	RGBA8Color* rgbaColors;
+	RGBAColorF32* rgbaColors;
 	u32 count;
 };
 
@@ -1059,19 +1061,28 @@ int main(void) {
 
 	vkCheck(vkCreateDescriptorSetLayout(device, &layoutInfo, nil, &uniformBufferDescriptorSetLayout));
 
-	VkDescriptorSetLayoutBinding objectDataBinding = {};
-	objectDataBinding.binding = 0;
-	objectDataBinding.descriptorCount = 1;
-	objectDataBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	objectDataBinding.pImmutableSamplers = nil;
-	objectDataBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	VkDescriptorSetLayoutBinding objectTransformDataBinding = {};
+	objectTransformDataBinding.binding = 0;
+	objectTransformDataBinding.descriptorCount = 1;
+	objectTransformDataBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	objectTransformDataBinding.pImmutableSamplers = nil;
+	objectTransformDataBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayoutBinding objectColorDataBinding = {};
+	objectColorDataBinding.binding = 1;
+	objectColorDataBinding.descriptorCount = 1;
+	objectColorDataBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	objectColorDataBinding.pImmutableSamplers = nil;
+	objectColorDataBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayoutBinding objectDataBindings[] = {objectTransformDataBinding, objectColorDataBinding};
 
 	VkDescriptorSetLayoutCreateInfo objectDataLayoutInfo = {};
 	objectDataLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	objectDataLayoutInfo.bindingCount = 1;
+	objectDataLayoutInfo.bindingCount = sizeof(objectDataBindings)/sizeof(objectDataBindings[0]);
 	objectDataLayoutInfo.flags = 0;
 	objectDataLayoutInfo.pNext = nil;
-	objectDataLayoutInfo.pBindings = &objectDataBinding;
+	objectDataLayoutInfo.pBindings = objectDataBindings;
 
 	vkCheck(vkCreateDescriptorSetLayout(device, &objectDataLayoutInfo, nil, &objectDataDescriptorSetLayout));
 
@@ -1657,20 +1668,20 @@ int main(void) {
 	}
 
 	Buffer uniformBuffers[MAX_FRAMES_IN_FLIGHT];
-	Buffer objectBuffers[MAX_FRAMES_IN_FLIGHT];
-	Buffer colorBuffers[MAX_FRAMES_IN_FLIGHT];
+	Buffer objectTransformBuffers[MAX_FRAMES_IN_FLIGHT];
+	Buffer objectColorBuffers[MAX_FRAMES_IN_FLIGHT];
 	for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		uniformBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, sizeof(UniformBufferData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		vkCheck(uniformBuffers[i].createResult);
 		vkMapMemory(device, uniformBuffers[i].memory, 0, sizeof(UniformBufferData), 0, &uniformBuffers[i].mappedData);
 
-		objectBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, maxVoxels*sizeof(math::Matrix4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		vkCheck(objectBuffers[i].createResult);
-		vkMapMemory(device, objectBuffers[i].memory, 0, maxVoxels*sizeof(math::Matrix4), 0, &objectBuffers[i].mappedData);
+		objectTransformBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, maxVoxels*sizeof(math::Matrix4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		vkCheck(objectTransformBuffers[i].createResult);
+		vkMapMemory(device, objectTransformBuffers[i].memory, 0, maxVoxels*sizeof(math::Matrix4), 0, &objectTransformBuffers[i].mappedData);
 
-		colorBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, maxVoxels*sizeof(RGBA8Color), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		vkCheck(objectBuffers[i].createResult);
-		vkMapMemory(device, colorBuffers[i].memory, 0, maxVoxels*sizeof(RGBA8Color), 0, &colorBuffers[i].mappedData);
+		objectColorBuffers[i] = createBuffer(physicalDeviceMemoryProperties, device, maxVoxels*sizeof(RGBAColorF32), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		vkCheck(objectColorBuffers[i].createResult);
+		vkMapMemory(device, objectColorBuffers[i].memory, 0, maxVoxels*sizeof(RGBAColorF32), 0, &objectColorBuffers[i].mappedData);
 	}
 
 	Image textureImages[5] = {};
@@ -1695,7 +1706,7 @@ int main(void) {
 
 	GPUObjectData gpuObjectData = {};
 	gpuObjectData.models = (math::Matrix4*) allocateMemory(memoryAllocator, voxelArray.voxelsCapacity * sizeof(math::Matrix4));
-	gpuObjectData.rgbaColors = (RGBA8Color*) allocateMemory(memoryAllocator, voxelArray.voxelsCapacity * sizeof(RGBA8Color));
+	gpuObjectData.rgbaColors = (RGBAColorF32*) allocateMemory(memoryAllocator, voxelArray.voxelsCapacity * sizeof(RGBAColorF32));
 	gpuObjectData.count = voxelArray.voxelsCapacity;
 
 	i32 g1 = addVoxel(&voxelArray, grassVoxelMaterial, Vector3i{0, 0, 0}, Vector3ui{ 8, 8, 8 });
@@ -1794,7 +1805,7 @@ int main(void) {
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(UniformBufferData);
 
-		VkWriteDescriptorSet descriptorWrites[4] = {};
+		VkWriteDescriptorSet descriptorWrites[5] = {};
 
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].dstSet = uniformBufferDescriptorSets[i];
@@ -1806,10 +1817,10 @@ int main(void) {
 		descriptorWrites[0].pImageInfo = nil;
 		descriptorWrites[0].pTexelBufferView = nil;
 
-		VkDescriptorBufferInfo objectBufferInfo = {};
-		objectBufferInfo.buffer = objectBuffers[i].buffer;
-		objectBufferInfo.offset = 0;
-		objectBufferInfo.range = (sizeof(math::Matrix4)) * maxVoxels;
+		VkDescriptorBufferInfo objectTransformBufferInfo = {};
+		objectTransformBufferInfo.buffer = objectTransformBuffers[i].buffer;
+		objectTransformBufferInfo.offset = 0;
+		objectTransformBufferInfo.range = (sizeof(math::Matrix4)) * maxVoxels;
 		
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].dstSet = objectDataDescriptorSets[i];
@@ -1817,33 +1828,33 @@ int main(void) {
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pBufferInfo = &objectBufferInfo;
+		descriptorWrites[1].pBufferInfo = &objectTransformBufferInfo;
 
-		//VkDescriptorBufferInfo colorBufferInfo = {};
-		//objectBufferInfo.buffer = objectBuffers[i].buffer;
-		//objectBufferInfo.offset = 0;
-		//objectBufferInfo.range = (sizeof(RGBA8Color)) * maxVoxels;
+		VkDescriptorBufferInfo objectColorBufferInfo = {};
+		objectColorBufferInfo.buffer = objectColorBuffers[i].buffer;
+		objectColorBufferInfo.offset = 0;
+		objectColorBufferInfo.range = (sizeof(RGBAColorF32)) * maxVoxels;
 
-		//descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		//descriptorWrites[2].dstSet = objectDataDescriptorSets[i];
-		//descriptorWrites[2].dstBinding = 1;
-		//descriptorWrites[2].dstArrayElement = 0;
-		//descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		//descriptorWrites[2].descriptorCount = 1;
-		//descriptorWrites[2].pBufferInfo = &colorBufferInfo;
+		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[2].dstSet = objectDataDescriptorSets[i];
+		descriptorWrites[2].dstBinding = 1;
+		descriptorWrites[2].dstArrayElement = 0;
+		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		descriptorWrites[2].descriptorCount = 1;
+		descriptorWrites[2].pBufferInfo = &objectColorBufferInfo;
 
 		VkDescriptorImageInfo samplerInfo = {};
 		samplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		samplerInfo.imageView = nil;
 		samplerInfo.sampler = nearestFilterSampler;
 
-		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[2].dstSet = textureDescriptorSets[i];
-		descriptorWrites[2].dstBinding = 0;
-		descriptorWrites[2].dstArrayElement = 0;
-		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-		descriptorWrites[2].descriptorCount = 1;
-		descriptorWrites[2].pImageInfo = &samplerInfo;
+		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[3].dstSet = textureDescriptorSets[i];
+		descriptorWrites[3].dstBinding = 0;
+		descriptorWrites[3].dstArrayElement = 0;
+		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		descriptorWrites[3].descriptorCount = 1;
+		descriptorWrites[3].pImageInfo = &samplerInfo;
 
 		VkDescriptorImageInfo texturesInfo [texturesArrayCapacity] = {};
 		for (u32 i = 0; i < texturesArrayCapacity; i++) {
@@ -1857,13 +1868,13 @@ int main(void) {
 			texturesInfo[i].sampler = nil;
 		}
 
-		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[3].dstSet = textureDescriptorSets[i];
-		descriptorWrites[3].dstBinding = 1;
-		descriptorWrites[3].dstArrayElement = 0;
-		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		descriptorWrites[3].descriptorCount = texturesArrayCapacity;
-		descriptorWrites[3].pImageInfo = texturesInfo;
+		descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[4].dstSet = textureDescriptorSets[i];
+		descriptorWrites[4].dstBinding = 1;
+		descriptorWrites[4].dstArrayElement = 0;
+		descriptorWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		descriptorWrites[4].descriptorCount = texturesArrayCapacity;
+		descriptorWrites[4].pImageInfo = texturesInfo;
 
 
 		vkUpdateDescriptorSets(device, sizeof(descriptorWrites)/sizeof(descriptorWrites[0]), descriptorWrites, 0, nil);
@@ -2170,7 +2181,7 @@ int main(void) {
 
 			model = math::scaleMatrix(model, math::Vector3{ (f32)voxelArray.voxelsScale[i].x, (f32)voxelArray.voxelsScale[i].y, (f32)voxelArray.voxelsScale[i].z }.scale(voxelUnitsToWorldUnits));
 			gpuObjectData.models[gpuObjectData.count] = model;
-			gpuObjectData.rgbaColors[gpuObjectData.count] = 0xffffffff;
+			gpuObjectData.rgbaColors[gpuObjectData.count] = { 1.0f, 1.0f, 1.0f, 1.0f };
 			gpuObjectData.count += 1;
 		}
 
@@ -2178,7 +2189,7 @@ int main(void) {
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, texturePipelineLayout, 1, 1, &objectDataDescriptorSets[frameCounter], 0, nil);
 		vkCmdBindDescriptorSets(commandBuffers[frameCounter], VK_PIPELINE_BIND_POINT_GRAPHICS, texturePipelineLayout, 2, 1, &textureDescriptorSets[frameCounter], 0, nil);
 
-		memcpy(objectBuffers[frameCounter].mappedData, gpuObjectData.models, sizeof(math::Matrix4)*gpuObjectData.count);
+		memcpy(objectTransformBuffers[frameCounter].mappedData, gpuObjectData.models, sizeof(math::Matrix4)*gpuObjectData.count);
 
 		for (i32 i = 0; i < voxelArray.voxelsCount; i++) {
 			TexturePushConstants tcp = {};

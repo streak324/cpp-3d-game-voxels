@@ -21,6 +21,14 @@ layout (std140,set = 1, binding = 0) readonly buffer ObjectBuffer{
 	ObjectData objects[];
 } objectBuffer;
 
+struct RGBAColor {
+	vec4 color;
+};
+
+layout (std140,set = 1, binding = 1) readonly buffer ColorBuffer{
+	RGBAColor colors[];
+} colorBuffer;
+
 void main() {
 	gl_Position = ub.projection * ub.view * objectBuffer.objects[gl_InstanceIndex].model * vec4(inPosition, 1.0);
 	fragColor = inColor;
