@@ -17,6 +17,7 @@ namespace math {
 		Vector3 normalize();
 		Vector3 cross(Vector3 b);
 		f32 dot(Vector3 b);
+		f32 length();
 		Vector3 scale(f32 s);
 		Vector3 project(Vector3 onto);
 	};
@@ -24,7 +25,7 @@ namespace math {
 	union Matrix4 {
 		struct array
 		{
-			//ordered by then column first, then row. i.e. first element is column 0, row 1, second element is column 0, row 1, last element is column 3, row 3.
+			//ordered by column first, then row. i.e. first element is column 0, row 1, second element is column 0, row 1, last element is column 3, row 3.
 			f32 m[16];
 		};
 		struct elements{
@@ -68,11 +69,23 @@ namespace math {
 	Matrix4 initXAxisRotationMatrix(f32 angle);
 	Matrix4 initYAxisRotationMatrix(f32 angle);
 	Matrix4 initZAxisRotationMatrix(f32 angle);
+	f32 calculateElementCofactor(Matrix4 m, int row, int column);
+	Matrix4 inverseMatrix(Matrix4 m);
 
 	f32 radians(f32 degrees);
 
 	Vector3 rotateVector(Vector3 a, Rotation rotation);
 	Matrix4 createRotationMatrix(Rotation rotation);
+
+	struct Plane{
+		Vector3 normal; // Plane normal. for any point x on the plane, dot(normal, x) = d
+		float d; //the dot product between the plane normal and any point on the plane. d = dot(normal, x). If the plane normal is a unit vector, d is also the distance away from the origin
+	};
+
+	bool32 isSegmentLineIntersectingPlane(Plane plane, Vector3 pointA, Vector3 pointB, Vector3* q);
+
+
+	void lookAtVectors(Vector3 direction, Vector3* right, Vector3* up);
 }
 
 #endif

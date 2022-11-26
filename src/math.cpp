@@ -65,8 +65,12 @@ namespace math {
 		return x * b.x + y * b.y + z * b.z;
 	}
 
+	f32 Vector3::length() {
+		return sqrtf(x * x + y * y + z * z);
+	}
+
 	Matrix4 Matrix4::multiply(Matrix4 b) {
-		Matrix4 r;
+		Matrix4 r = {};
 		const u32 squareSize = 4;
 		for (u32 i = 0; i < 16; i++) {
 			u32 column = i / 4;
@@ -131,6 +135,14 @@ namespace math {
 		return createFrustum(-half_width, half_width, -half_height, half_height, zNear, zFar);
 	}
 
+	// calculate the right, and up lookAt vectors
+	void lookAtVectors(Vector3 direction, Vector3 *right, Vector3 *up) {
+		math::Vector3 tmpUp = {0.0f, 1.0f, 0.0f};
+		Vector3 forward = direction;
+		*right = tmpUp.cross(forward).normalize();
+		*up = forward.cross(*right);
+	}
+
 	Matrix4 lookAt(Vector3 from, Vector3 to, Vector3 up) {
 		Vector3 forward = from.sub(to).normalize();
 		Vector3 right = up.cross(forward).normalize();
@@ -178,6 +190,41 @@ namespace math {
 		return m;
 	}
 
+
+	f32 calculateElementCofactor(Matrix4 m, int row, int column) {
+		_assert(row >= 0 && row < 4 && column >= 0 && column < 4);
+		f32 minor[9] = {};
+
+		int minorRow = 0;
+		int neg = 2 * ((1 + row + column) % 2) - 1;
+
+		for (int i = 0; i < 4; i++) {
+			if (i == row) {
+				continue;
+			}
+			int minorColumn = 0;
+			for (int j = 0; j < 4; j++) {
+				if (j == column) {
+					continue;
+				}
+				int index = 3 * minorColumn + minorRow;
+				minor[index] = m.a.m[4 * j + i];
+				minorColumn += 1;
+			}
+			minorRow += 1;
+		}
+
+		f32 sum1 = minor[0] * (minor[4] * minor[8] - minor[7] * minor[5]);
+		f32 sum2 = minor[3] * (minor[1] * minor[8] - minor[7] * minor[2]);
+		f32 sum3 = minor[6] * (minor[1] * minor[5] - minor[4] * minor[2]);
+
+		return m.a.m[4 * column + row] * (sum1 - sum2 + sum3) * (f32)neg;
+	}
+
+	Matrix4 inverseMatrix(Matrix4 m) {
+		Matrix4 r = {};
+		return r;
+	}
 
 	f32 radians(f32 degrees) {
 		return degrees * TAU32 / 360.0f;
@@ -238,4 +285,12 @@ namespace math {
 		return m;
 	}
 
+	bool32 isSegmentLineIntersectingPlane(Plane plane, Vector3 pointA, Vector3 pointB, Vector3* q) { 
+		f32 t = (plane.d - plane.normal.dot(pointA)) / plane.normal.dot(pointB.sub(pointA));
+		if (t >= 0.0f && t <= 1.0f) {
+			*q = pointA.add(pointB.sub(pointA).scale(t));
+			return 1;
+		}
+		return 0;
+	}
 };

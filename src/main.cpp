@@ -1201,7 +1201,7 @@ int main(void) {
 		rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 		//rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
 		//rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
-		rasterizationStateCreateInfo.depthBiasEnable = false;
+		rasterizationStateCreateInfo.depthBiasEnable = true;
 		rasterizationStateCreateInfo.depthBiasConstantFactor = 0.0f;
 		rasterizationStateCreateInfo.depthBiasClamp = 0.0f;
 		rasterizationStateCreateInfo.depthBiasSlopeFactor = 0.0f;
@@ -1219,7 +1219,7 @@ int main(void) {
 		colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 		colorBlendAttachment.blendEnable = VK_TRUE;
 		colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-		colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+		colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 		colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
 		colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 		colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
@@ -1397,7 +1397,7 @@ int main(void) {
 		colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 		colorBlendAttachment.blendEnable = VK_TRUE;
 		colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-		colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+		colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 		colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
 		colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 		colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
@@ -1537,6 +1537,23 @@ int main(void) {
 		{ { 0.5f,  0.5f,  0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 1.0f, } },
 		{ { 0.5f,  0.5f, -0.5f,  }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 1.0f, 0.0f, } },
 		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
+	};
+
+	math::Vector3 cubeFrontFaceNormal = math::Vector3{ 0.0f, 0.0f, 1.0f };
+	math::Vector3 cubeBackFaceNormal = math::Vector3{ 0.0f, 0.0f, 1.0f };
+	math::Vector3 cubeLeftFaceNormal = math::Vector3{ -1.0f, 0.0f, 0.0f };
+	math::Vector3 cubeRightFaceNormal = math::Vector3{ 1.0f, 0.0f, 1.0f };
+	math::Vector3 cubeBottomFaceNormal = math::Vector3{ 0.0f, -1.0f, 0.0f };
+	math::Vector3 cubeTopFaceNormal = math::Vector3{ 0.0f, 1.0f, 0.0f };
+	
+	math::Plane cubePlanes[6] = {
+		//front
+		{ cubeFrontFaceNormal, 0.5f },
+		{ cubeBackFaceNormal, 0.5f },
+		{ cubeLeftFaceNormal, 0.5f },
+		{ cubeRightFaceNormal, 0.5f },
+		{ cubeBottomFaceNormal, 0.5f },
+		{ cubeTopFaceNormal, 0.5f },
 	};
 
 	const PositionVertex positionCubeVertices[36] = {
@@ -1728,7 +1745,7 @@ int main(void) {
 	addVoxelGroupFromVoxelRange(&voxelArray, g1, g1, math::Vector3{ 6, 0, -16 });
 	addVoxelGroupFromVoxelRange(&voxelArray, g2, g2, math::Vector3{ -6, 0, -16 });
 
-	addVoxel(&voxelArray, colorWhite, Vector3i{0, 12, -40}, Vector3ui{ 8, 8, 8 });
+	addVoxel(&voxelArray, {0.0f, 1.0f, 1.0f, 0.2f}, Vector3i{0, 12, -40}, Vector3ui{8, 8, 8});
 	addVoxel(&voxelArray, colorWhite, Vector3i{24, 12, -30}, Vector3ui{ 8, 8, 2 });
 	addVoxel(&voxelArray, colorWhite, Vector3i{36, 12, -30}, Vector3ui{ 8, 8, 1 });
 	addVoxel(&voxelArray, colorWhite, Vector3i{-10, 12, -30}, Vector3ui{ 8, 8, 8 });
@@ -1933,10 +1950,6 @@ int main(void) {
 	
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-	if (glfwRawMouseMotionSupported()) {
-		glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-	}
 
 	//setup Dear ImGui
 	IMGUI_CHECKVERSION();
@@ -1961,48 +1974,68 @@ int main(void) {
 	ImGui_ImplVulkan_Init(&initInfo, renderPass);
 
 	{
-		VkCommandBuffer commandBuffer = beginSingleTimeCommands(device, commandPool);
-		ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
-		endSingleTimeCommands(device, commandBuffer, commandPool, graphicsQueue);
+	VkCommandBuffer commandBuffer = beginSingleTimeCommands(device, commandPool);
+	ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+	endSingleTimeCommands(device, commandBuffer, commandPool, graphicsQueue);
 	}
 
 	u64 frameCounter = -1;
 
+	int windowWidth, windowHeight;
+	glfwGetWindowSize(window, &windowWidth, &windowHeight);
+
 	f64 lastCursorX, lastCursorY;
 	f64 cursorX, cursorY;
 	glfwGetCursorPos(window, &cursorX, &cursorY);
+	cursorY = windowHeight - cursorY;
 	lastCursorY = cursorX;
 	lastCursorY = cursorY;
 
 	bool showImGuiDemoWindow = false;
-	bool isMovingCamera = true;
 	bool wasCameraToggleKeyPressed = false;
+
+	bool32 isMovingCamera = 0;
+	if (isMovingCamera) {
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		if (glfwRawMouseMotionSupported()) {
+			glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+		}
+	}
 
 	bool isDisplayingGrid = true;
 
+	i32 maxVoxelGridUnitSize = 16;
 	i32 voxelGridUnitSize = 8;
 	i32 voxelGridWidth = 64;
 	i32 voxelGridHeight = 32;
 
+	i32 selectedVoxelIndex = 0;
+	RGBAColorF32 selectedVoxelColorBlend = { 1.0f, 1.0f, 0.0f, 0.1f };
+
 	f32 cameraPitch = 0.0f;
-	f32 cameraYaw = -PI32/2;
+	f32 cameraYaw = -PI32 / 2;
 	math::Vector3 cameraDirection = {
 		cosf(cameraYaw) * cosf(cameraPitch),
 		sinf(cameraPitch),
 		sinf(cameraYaw) * cosf(cameraPitch),
 	};
 
+	math::Vector3 cameraRight = {};
+	math::Vector3 cameraUp = {};
+	math::lookAtVectors(cameraDirection, &cameraRight, &cameraUp);
+
 	VkClearValue clearColor = {};
 	clearColor.color = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-	printf("%f seconds to bootup\n", (f32) glfwGetTime() - loadStartTime);
+	bool32 wasLeftCursorPressed = false;
+
+	printf("%f seconds to bootup\n", (f32)glfwGetTime() - loadStartTime);
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
 		frameCounter = (frameCounter + 1) % MAX_FRAMES_IN_FLIGHT;
 		/* Poll for and process events */
 		glfwPollEvents();
 
-		int windowWidth, windowHeight;
 		glfwGetWindowSize(window, &windowWidth, &windowHeight);
 		if (windowWidth == 0 || windowHeight == 0) {
 			glfwWaitEventsTimeout(0.1);
@@ -2012,11 +2045,12 @@ int main(void) {
 		lastCursorX = cursorX;
 		lastCursorY = cursorY;
 		glfwGetCursorPos(window, &cursorX, &cursorY);
+		cursorY = (f32) windowHeight - cursorY;
 
-		f32 deltaCursorX = (f32) (cursorX - lastCursorX);
-		f32 deltaCursorY = (f32) - (cursorY - lastCursorY);
+		f32 deltaCursorX = (f32)(cursorX - lastCursorX);
+		f32 deltaCursorY = (f32)(cursorY - lastCursorY);
 
-		f32 timestep = fminf(max_timestep, (f32) (glfwGetTime() - lastFrameDelta));
+		f32 timestep = fminf(max_timestep, (f32)(glfwGetTime() - lastFrameDelta));
 
 		math::Vector3 cameraForwardUnitVelocity = {};
 		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
@@ -2048,8 +2082,25 @@ int main(void) {
 				}
 			}
 			wasCameraToggleKeyPressed = true;
-		} else if (glfwGetKey(window, GLFW_KEY_O) == GLFW_RELEASE) {
+		}
+		else if (glfwGetKey(window, GLFW_KEY_O) == GLFW_RELEASE) {
 			wasCameraToggleKeyPressed = false;
+		}
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+			if (!wasLeftCursorPressed) {
+				//z is -1, because the z axis is pointing away from the screen in our system.
+				//assume w is  1
+				math::Vector3 cursorInClipSpace = math::Vector3{2 * (-0.5f + ((f32) cursorX / (f32) windowWidth)), 2 * (-0.5f + ((f32)cursorY / (f32)windowHeight)), -1.0f};
+
+				//cursorInEyeSpace = 
+
+				printf("cursor: (%f, %f).\ncursor to clip space: (%f, %f, %f).\n", cursorX, cursorY, cursorInClipSpace.x, cursorInClipSpace.y, cursorInClipSpace.z);
+
+			}
+			wasLeftCursorPressed = 1;
+		}
+		else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
+			wasLeftCursorPressed = 0;
 		}
 
 		if (isMovingCamera) {
@@ -2074,12 +2125,12 @@ int main(void) {
 			if (distanceSquared > (1/1024.0f)) {
 				math::Vector3 up = {0.0, 1.0, 0.0};
 				math::Vector3 forward = cameraDirection;
-				math::Vector3 right = up.cross(forward).normalize();
-				math::Vector3 newUp = forward.cross(right);
+				cameraRight = up.cross(forward).normalize();
+				cameraUp = forward.cross(cameraRight);
 				math::Vector3 cameraVelocity = 
 					forward.scale(cameraForwardUnitVelocity.z)
-					.add(right.scale(cameraForwardUnitVelocity.x)
-					.add(newUp.scale(cameraForwardUnitVelocity.y)))
+					.add(cameraRight.scale(cameraForwardUnitVelocity.x)
+					.add(cameraUp.scale(cameraForwardUnitVelocity.y)))
 					.scale(-cameraSpeed);
 				cameraPosition = cameraPosition.add(cameraVelocity.scale(timestep));
 			}
@@ -2156,7 +2207,7 @@ int main(void) {
 		f32 scale = 2.0f;
 
 		ub.view = math::lookAt(cameraPosition, cameraPosition.add(cameraDirection), math::Vector3{0.0f, 1.0f, 0.0f});
-		ub.projection = math::createPerspective(math::radians(90.0f), (f32)swapchain.extent.width/(f32)swapchain.extent.height, 0.1f, 100.0f);
+		ub.projection = math::createPerspective(math::radians(70.0f), (f32)swapchain.extent.width/(f32)swapchain.extent.height, 0.1f, 100.0f);
 
 		{
 			VkDeviceSize offsets[] = { 0 };
@@ -2176,6 +2227,7 @@ int main(void) {
 
 		const f32 voxelUnitsToWorldUnits = 0.25f;
 		gpuObjectData.count = 0;
+
 		for (i32 i = 0; i < voxelArray.voxelsCount; i++) {
 			math::Vector3 worldPosition = math::Vector3{ (f32)voxelArray.voxelsPosition[i].x, (f32)voxelArray.voxelsPosition[i].y, (f32)voxelArray.voxelsPosition[i].z }.scale(voxelUnitsToWorldUnits);
 
@@ -2192,18 +2244,35 @@ int main(void) {
 
 			model = math::scaleMatrix(model, math::Vector3{ (f32)voxelArray.voxelsScale[i].x, (f32)voxelArray.voxelsScale[i].y, (f32)voxelArray.voxelsScale[i].z }.scale(voxelUnitsToWorldUnits));
 			gpuObjectData.models[gpuObjectData.count] = model;
-			gpuObjectData.rgbaColors[gpuObjectData.count] = voxelArray.colors[i];
+			RGBAColorF32 color = voxelArray.colors[i];
+			if (selectedVoxelIndex == i) {
+				color.r = 0.5f * (color.r + selectedVoxelColorBlend.r);
+				color.g = 0.5f * (color.g + selectedVoxelColorBlend.g);
+				color.b = 0.5f * (color.b + selectedVoxelColorBlend.b);
+				color.a = 0.5f * (color.a + selectedVoxelColorBlend.a);
+			}
+			gpuObjectData.rgbaColors[gpuObjectData.count] = color;
 			gpuObjectData.count += 1;
 		}
 
 
+		{ //handle transparent objects
+			math::Matrix4 otherModel = gpuObjectData.models[gpuObjectData.count - 1];
+			RGBAColorF32 otherColor = gpuObjectData.rgbaColors[gpuObjectData.count - 1];
+			gpuObjectData.models[gpuObjectData.count - 1] = gpuObjectData.models[selectedVoxelIndex];
+			gpuObjectData.rgbaColors[gpuObjectData.count - 1] = gpuObjectData.rgbaColors[selectedVoxelIndex];
+			gpuObjectData.models[selectedVoxelIndex] = otherModel;
+			gpuObjectData.rgbaColors[selectedVoxelIndex] = otherColor;
+		}
+
 		f32 lineThickness = 0.06125f;
+		RGBAColorF32 gridColor = {1.0f, 0.0f, 0.0f, 0.1f};
 		for (i32 i = 0; i < voxelGridWidth+1; i++) {
 			f32 zLength = -(f32) (voxelGridHeight * voxelGridUnitSize) * voxelUnitsToWorldUnits;
 			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ (f32) (voxelGridUnitSize * i) * voxelUnitsToWorldUnits , 0.0f, 0.5f * zLength });
 			model = math::scaleMatrix(model, math::Vector3{ lineThickness, lineThickness, (f32) zLength });
 			gpuObjectData.models[gpuObjectData.count] = model;
-			gpuObjectData.rgbaColors[gpuObjectData.count] = {1.0f, 0.0f, 0.0f, 1.0f};
+			gpuObjectData.rgbaColors[gpuObjectData.count] = gridColor;
 			gpuObjectData.count += 1;
 		}
 
@@ -2212,7 +2281,7 @@ int main(void) {
 			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.5f * columnLength, 0.0f, -(f32)(voxelGridUnitSize * i) * voxelUnitsToWorldUnits});
 			model = math::scaleMatrix(model, math::Vector3{columnLength, lineThickness, lineThickness });
 			gpuObjectData.models[gpuObjectData.count] = model;
-			gpuObjectData.rgbaColors[gpuObjectData.count] = {1.0f, 0.0f, 0.0f, 1.0f};
+			gpuObjectData.rgbaColors[gpuObjectData.count] = gridColor;
 			gpuObjectData.count += 1;
 		}
 
@@ -2258,7 +2327,7 @@ int main(void) {
 
 			voxelGridWidth = MIN(MAX(1, voxelGridWidth), 1024);
 			voxelGridHeight = MIN(MAX(1, voxelGridHeight), 1024);
-			voxelGridUnitSize = MIN(MAX(1, voxelGridUnitSize), 8);
+			voxelGridUnitSize = MIN(MAX(1, voxelGridUnitSize), maxVoxelGridUnitSize);
 
             if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;

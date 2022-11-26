@@ -35,7 +35,7 @@ i32 addVoxelGroupFromVoxelRange(VoxelArray* voxelArray, u32 start, u32 end, math
 	};
 	group->worldPosition = worldPosition;
 
-	for (i32 i = start; i <= end; i++) {
+	for (u32 i = start; i <= end; i++) {
 		voxelArray->voxelsGroupIndex[i] = voxelArray->groupsCount;
 	}
 

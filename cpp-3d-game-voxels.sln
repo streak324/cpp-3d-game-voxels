@@ -5,6 +5,8 @@ VisualStudioVersion = 17.3.32922.545
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpp-3d-game-voxels", "cpp-3d-game-voxels.vcxproj", "{20A47F66-2839-45A9-8375-546306CDABA1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "math-test", "math-test\math-test.vcxproj", "{6F79D383-8A9A-4CCD-8273-9900B886FDEC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +23,14 @@ Global
 		{20A47F66-2839-45A9-8375-546306CDABA1}.Release|x64.Build.0 = Release|x64
 		{20A47F66-2839-45A9-8375-546306CDABA1}.Release|x86.ActiveCfg = Release|Win32
 		{20A47F66-2839-45A9-8375-546306CDABA1}.Release|x86.Build.0 = Release|Win32
+		{6F79D383-8A9A-4CCD-8273-9900B886FDEC}.Debug|x64.ActiveCfg = Debug|x64
+		{6F79D383-8A9A-4CCD-8273-9900B886FDEC}.Debug|x64.Build.0 = Debug|x64
+		{6F79D383-8A9A-4CCD-8273-9900B886FDEC}.Debug|x86.ActiveCfg = Debug|Win32
+		{6F79D383-8A9A-4CCD-8273-9900B886FDEC}.Debug|x86.Build.0 = Debug|Win32
+		{6F79D383-8A9A-4CCD-8273-9900B886FDEC}.Release|x64.ActiveCfg = Release|x64
+		{6F79D383-8A9A-4CCD-8273-9900B886FDEC}.Release|x64.Build.0 = Release|x64
+		{6F79D383-8A9A-4CCD-8273-9900B886FDEC}.Release|x86.ActiveCfg = Release|Win32
+		{6F79D383-8A9A-4CCD-8273-9900B886FDEC}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
