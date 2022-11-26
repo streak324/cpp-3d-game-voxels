@@ -69,7 +69,9 @@ namespace math {
 	Matrix4 initXAxisRotationMatrix(f32 angle);
 	Matrix4 initYAxisRotationMatrix(f32 angle);
 	Matrix4 initZAxisRotationMatrix(f32 angle);
+	Matrix4 transposeMatrix(Matrix4 m);
 	f32 calculateElementCofactor(Matrix4 m, int row, int column);
+	f32 calculateDeterminant(Matrix4 m);
 	Matrix4 inverseMatrix(Matrix4 m);
 
 	f32 radians(f32 degrees);
@@ -86,6 +88,8 @@ namespace math {
 
 
 	void lookAtVectors(Vector3 direction, Vector3* right, Vector3* up);
+
+	bool32 withinTolerance(f32 got, f32 want, f32 tolerance);
 }
 
 #endif

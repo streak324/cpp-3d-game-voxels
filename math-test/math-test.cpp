@@ -52,7 +52,17 @@ int main() {
 			{
 				0, 1,
 				m,
-				8.0f,
+				-4.0f,
+			},
+			{
+				0, 2,
+				m, 
+				3.0f,
+			},
+			{
+				0, 3,
+				m,
+				1.0f
 			},
 			{
 				2, 3,
@@ -64,8 +74,96 @@ int main() {
 		for (int i = 0; i < sizeof(testCases) / sizeof(testCases[0]); i++) {
 			f32 got = math::calculateElementCofactor(testCases[i].m, testCases[i].row, testCases[i].col);
 			if (got != testCases[i].want) {
-				printf("want: %f. got %f", testCases[i].want, got);
+				printf("calculate element cofactor failed at test case %d. want: %f. got %f", i, testCases[i].want, got);
 				return 1;
+			}
+		}
+	}
+	{
+
+		struct testCase {
+			math::Matrix4 m;
+			f32 want;
+		};
+
+		testCase testCases[] = {
+			{
+				math::scaleMatrix(math::initIdentityMatrix(), 2.0f),
+				8.0f,
+			},
+		};
+
+		for (int i = 0; i < sizeof(testCases) / sizeof(testCases[0]); i++) {
+			f32 got = math::calculateDeterminant(testCases[i].m);
+			if (got != testCases[i].want) {
+				printf("calculating determinant failed at test case %d. want: %f. got %f", i, testCases[i].want, got);
+				return 1;
+			}
+		}
+	}
+	{
+		math::Matrix4 m = {};
+
+		m.e.m00 = -1.0f, m.e.m01 = -2.0f, m.e.m02 = 2.0f, m.e.m03 = 1.0f;
+		m.e.m10 = 2.0f, m.e.m11 = 1.0f, m.e.m12 = 1.0f, m.e.m13 = 1.0f;
+		m.e.m20 = 3.0f, m.e.m21 = 4.0f, m.e.m22 = 5.0f, m.e.m23 = 1.0f;
+		m.e.m30 = 1.0f, m.e.m31 = 1.0f, m.e.m32 = 1.0f, m.e.m33 = 1.0f;
+
+		math::Matrix4 w = {};
+
+		w.e.m00 = -1.0f, w.e.m10 = -2.0f, w.e.m20 = 2.0f, w.e.m30 = 1.0f;
+		w.e.m01 = 2.0f, w.e.m11 = 1.0f, w.e.m21 = 1.0f, w.e.m31 = 1.0f;
+		w.e.m02 = 3.0f, w.e.m12 = 4.0f, w.e.m22 = 5.0f, w.e.m32 = 1.0f;
+		w.e.m03 = 1.0f, w.e.m13 = 1.0f, w.e.m23 = 1.0f, w.e.m33 = 1.0f;
+
+		math::Matrix4 g = math::transposeMatrix(m);
+
+		for (int i = 0; i < 16; i++) {
+			if (g.a.m[i] != w.a.m[i]) {
+				printf("fail on index %d. want %f, got %f\n", i, w.a.m[i], g.a.m[i]);
+				return 1;
+			}
+		}
+	}
+	{
+		const f32 tolerance = 1.0f / (1024.0f * 16.0f);
+		struct testCase {
+			math::Matrix4 m;
+			math::Matrix4 want;
+		};
+
+		testCase testCases[] = {
+			{
+				math::initIdentityMatrix(),
+				math::initIdentityMatrix(),
+			},
+			{
+				math::scaleMatrix(math::initIdentityMatrix(), 2.0f),
+				math::scaleMatrix(math::initIdentityMatrix(), 0.5f),
+			},
+			{
+				math::transposeMatrix(math::Matrix4{
+					1, 4, 5, -1,
+					-2, 3, -1, 0,
+					2, 1, 1, 0,
+					3, -1, 2, 1
+				}),
+				math::transposeMatrix(math::Matrix4{
+					-0.1f, -0.1f, 0.6f, -0.1f,
+					0.0f, 0.25f, 0.25f, 0.0f,
+					0.2f, -0.05f, -0.45f, 0.2f,
+					-0.1f, 0.65f, -0.65f, 0.9f,
+				}),
+			},
+		};
+		for (int i = 0; i < sizeof(testCases) / sizeof(testCases[0]); i++) {
+			math::Matrix4 got = math::inverseMatrix(testCases[i].m);
+
+			for (int j = 0; j < 16; j++) {
+				if (!math::withinTolerance(got.a.m[j], testCases[i].want.a.m[j], tolerance)) {
+					printf("failed on test case %d. element %d. want %f, got %f\n", i, j, testCases[i].want.a.m[j], got.a.m[j]);
+					return 1;
+				}
 			}
 		}
 	}

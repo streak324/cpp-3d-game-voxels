@@ -190,6 +190,15 @@ namespace math {
 		return m;
 	}
 
+	Matrix4 transposeMatrix(Matrix4 m) {
+		Matrix4 r = {};
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				r.a.m[4 * j + i] = m.a.m[4 * i + j];
+			}
+		}
+		return r;
+	}
 
 	f32 calculateElementCofactor(Matrix4 m, int row, int column) {
 		_assert(row >= 0 && row < 4 && column >= 0 && column < 4);
@@ -218,12 +227,30 @@ namespace math {
 		f32 sum2 = minor[3] * (minor[1] * minor[8] - minor[7] * minor[2]);
 		f32 sum3 = minor[6] * (minor[1] * minor[5] - minor[4] * minor[2]);
 
-		return m.a.m[4 * column + row] * (sum1 - sum2 + sum3) * (f32)neg;
+		return (sum1 - sum2 + sum3) * (f32)neg;
+	}
+
+	f32 calculateDeterminant(Matrix4 m) {
+		f32 sum = 0;
+		for (int i = 0; i < 4; i++) {
+			f32 s = m.a.m[i] * calculateElementCofactor(m, i, 0);
+			sum += s;
+		}
+		return sum;
 	}
 
 	Matrix4 inverseMatrix(Matrix4 m) {
 		Matrix4 r = {};
-		return r;
+
+		f32 determinant = calculateDeterminant(m);
+		_assert(determinant != 0.0f);
+
+		for (int i = 0; i < 16; i++) {
+			f32 cofactor = calculateElementCofactor(m, i % 4, i / 4);
+			r.a.m[i] = cofactor / determinant;
+		}
+
+		return transposeMatrix(r);
 	}
 
 	f32 radians(f32 degrees) {
@@ -292,5 +319,9 @@ namespace math {
 			return 1;
 		}
 		return 0;
+	}
+
+	bool32 withinTolerance(f32 got, f32 want, f32 tolerance) {
+		return got - tolerance <= want && got + tolerance >= want;
 	}
 };
