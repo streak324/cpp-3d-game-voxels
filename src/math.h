@@ -54,8 +54,8 @@ namespace math {
 		[cos(angle/2), sinf(angle) * unit] 
 	*/
 	struct Rotation {
-		f32 angle;
 		//must be a unit vector
+		f32 angle;
 		Vector3 axis;
 	};
 
@@ -83,10 +83,13 @@ namespace math {
 
 	f32 radians(f32 degrees);
 
+
 	Vector3 rotateVector(Vector3 a, Rotation rotation);
 	Matrix4 createRotationMatrix(Rotation rotation);
 	Quaternion convertRotationToQuaternion(Rotation r);
 	Rotation convertQuaternionToRotation(Quaternion q);
+	Rotation multiplyRotations(Rotation a, Rotation b);
+	Rotation convertEulerAnglesToRotation(math::Vector3 euler);
 
 	struct Plane{
 		Vector3 normal; // Plane normal. for any point x on the plane, dot(normal, x) = d
@@ -98,7 +101,7 @@ namespace math {
 
 	void lookAtVectors(Vector3 direction, Vector3* right, Vector3* up);
 
-	bool32 withinTolerance(f32 got, f32 want, f32 tolerance);
+	bool32 isWithinTolerance(f32 got, f32 want, f32 tolerance);
 	bool32 isVectorWithinTolerance(Vector3 got, Vector3 want, f32 tolerance);
 
 	f32 getAngleBetweenTwoVectors(Vector3 a, Vector3 b);

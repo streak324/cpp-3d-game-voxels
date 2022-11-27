@@ -293,11 +293,27 @@ namespace math {
 		return quat;
 	}
 
+	Quaternion normalizeQuaternion(Quaternion q) {
+		f32 d = sqrtf(q.real * q.real + q.vector.x * q.vector.x + q.vector.y * q.vector.y + q.vector.z * q.vector.z);
+		f32 tolerance = 1.0f / (16.0f * 1024.0f);
+		if (isWithinTolerance(d, 0.0f, tolerance)) {
+			return Quaternion{
+				0.0f,
+				{1.0f, 0.0f, 0.0f},
+			};
+		}
+		return Quaternion{
+			q.real / d,
+			q.vector.scale(1.0f / d),
+		};
+	}
+
 	Quaternion convertRotationToQuaternion(Rotation r) {
+		_assert(isUnitVector(r.axis));
 		Quaternion q = {};
 		q.real = cosf(0.5f * r.angle);
 		q.vector = r.axis.scale(sinf(0.5f * r.angle));
-		return q;
+		return normalizeQuaternion(q);
 	}
 
 	Rotation convertQuaternionToRotation(Quaternion q) {
@@ -305,7 +321,7 @@ namespace math {
 		f32 angle = 2.0f * acosf(q.real);
 		f32 sinAngle = sinf(0.5f * angle);
 
-		if (withinTolerance(angle, 0.0f, tolerance)) {
+		if (isWithinTolerance(angle, 0.0f, tolerance)) {
 			return Rotation{ angle, math::Vector3{1.0f, 0.0f, 0.0f} };
 		}
 
@@ -313,6 +329,28 @@ namespace math {
 		r.angle = angle;
 		r.axis = q.vector.scale(1.0f / sinAngle);
 		return r;
+	}
+
+	Rotation multiplyRotations(Rotation a, Rotation b) {
+		return convertQuaternionToRotation(multiplyQuaternions(convertRotationToQuaternion(a), convertRotationToQuaternion(b)));
+	}
+
+	Rotation convertEulerAnglesToRotation(math::Vector3 euler) {
+		f32 cosX = cosf(0.5f * euler.x);
+		f32 cosY = cosf(0.5f * euler.y);
+		f32 cosZ = cosf(0.5f * euler.z);
+		f32 sinX = sinf(0.5f * euler.x);
+		f32 sinY = sinf(0.5f * euler.y);
+		f32 sinZ = sinf(0.5f * euler.z);
+
+		return convertQuaternionToRotation(Quaternion{
+			cosX * cosY * cosZ + sinX * sinY * sinZ,
+			math::Vector3{
+				sinX * cosY * cosZ - cosX * sinY * sinZ,
+				cosX * sinY * cosZ + sinX * cosY * sinZ,
+				cosX * cosY * sinZ - sinX * sinY * cosZ,
+			},
+		});
 	}
 
 	Vector3 rotateVector(Vector3 a, Rotation rotation) {
@@ -328,24 +366,22 @@ namespace math {
 	}
 
 	Matrix4 createRotationMatrix(Rotation rotation) {
+		rotation.axis = rotation.axis.normalize();
 		_assert(isUnitVector(rotation.axis));
-		Quaternion q = {
-			cosf(0.5f*rotation.angle),
-			rotation.axis.scale(sinf(0.5f*rotation.angle)),
-		};
+		Quaternion q = convertRotationToQuaternion(rotation);
 		Matrix4 m = initIdentityMatrix();
 
-		m.e.m00 = 2 * (q.real * q.real + q.vector.x * q.vector.x) - 1;
+		m.e.m00 = 1 - 2 * (q.vector.y * q.vector.y + q.vector.z * q.vector.z);
 		m.e.m01 = 2 * (q.vector.x * q.vector.y - q.real * q.vector.z);
 		m.e.m02 = 2 * (q.vector.x * q.vector.z + q.real * q.vector.y);
 
 		m.e.m10 = 2 * (q.vector.x * q.vector.y + q.real * q.vector.z);
-		m.e.m11 = 2 * (q.real * q.real + q.vector.y * q.vector.y) - 1;
+		m.e.m11 = 1 - 2 * (q.vector.x * q.vector.x + q.vector.z * q.vector.z);
 		m.e.m12 = 2 * (q.vector.y * q.vector.z - q.real * q.vector.x);
 
 		m.e.m20 = 2 * (q.vector.x * q.vector.z - q.real * q.vector.y);
 		m.e.m21 = 2 * (q.vector.y * q.vector.z + q.real * q.vector.x);
-		m.e.m22 = 2 * (q.real * q.real + q.vector.z * q.vector.z) - 1;
+		m.e.m22 = 1 - 2 * (q.vector.x * q.vector.x + q.vector.y * q.vector.y);
 
 		return m;
 	}
@@ -359,13 +395,13 @@ namespace math {
 		return 0;
 	}
 
-	bool32 withinTolerance(f32 got, f32 want, f32 tolerance) {
+	bool32 isWithinTolerance(f32 got, f32 want, f32 tolerance) {
 		return got - tolerance <= want && got + tolerance >= want;
 	}
 
 
 	bool32 isVectorWithinTolerance(Vector3 got, Vector3 want, f32 tolerance) {
-		return withinTolerance(got.x, want.x, tolerance) && withinTolerance(got.y, want.y, tolerance) && withinTolerance(got.z, want.z, tolerance);
+		return isWithinTolerance(got.x, want.x, tolerance) && isWithinTolerance(got.y, want.y, tolerance) && isWithinTolerance(got.z, want.z, tolerance);
 	}
 
 	f32 getAngleBetweenTwoVectors(Vector3 a, Vector3 b) {

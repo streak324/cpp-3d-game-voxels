@@ -1742,8 +1742,8 @@ int main(void) {
 	i32 g1 = addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 0, 0 }, Vector3ui{ 8, 8, 8 });
 	i32 g2 = addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 0, 0 }, Vector3ui{ 8, 8, 8 });
 
-	addVoxelGroupFromVoxelRange(&voxelArray, g1, g1, math::Vector3{ 6, 0, -16 });
-	addVoxelGroupFromVoxelRange(&voxelArray, g2, g2, math::Vector3{ -6, 0, -16 });
+	addVoxelGroupFromVoxelRange(&voxelArray, g1, g1, math::Vector3{ 12, 0, -30 });
+	addVoxelGroupFromVoxelRange(&voxelArray, g2, g2, math::Vector3{ -12, 0, -30 });
 
 	addVoxel(&voxelArray, {0.0f, 1.0f, 1.0f, 0.2f}, Vector3i{0, 12, -40}, Vector3ui{8, 8, 8});
 	addVoxel(&voxelArray, colorWhite, Vector3i{24, 12, -30}, Vector3ui{ 8, 8, 2 });
@@ -1759,7 +1759,20 @@ int main(void) {
 		addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 6, 0 }, Vector3ui{ 2, 2, 2 });
 		u32 end = addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 8, 0 }, Vector3ui{ 2, 2, 2 });
 
-		addVoxelGroupFromVoxelRange(&voxelArray, start, end, math::Vector3{0, 0, -10.0f});
+		addVoxelGroupFromVoxelRange(&voxelArray, start, end, math::Vector3{0, 0, -30.0f});
+	}
+	{
+		u32 i1 = addVoxel(&voxelArray, { 0.8f, 1.0f, 0.0f, 1.0f }, Vector3i{ 0, 0, 0 }, Vector3ui{2, 2, 4});
+		u32 i2 = addVoxel(&voxelArray, { 0.5f, 0.0f, 1.0f, 1.0f }, Vector3i{ 0, 0, 0 }, Vector3ui{2, 2, 4});
+		i32 g1 = addVoxelGroupFromVoxelRange(&voxelArray, i1, i1, math::Vector3{ 0, 0, -50 });
+		i32 g2 = addVoxelGroupFromVoxelRange(&voxelArray, i2, i2, math::Vector3{ 0, 0, -60 });
+		voxelArray.groups[g1].rotation = math::Rotation{};
+		voxelArray.groups[g1].rotation.angle = 1.604749;
+		voxelArray.groups[g1].rotation.axis = { 0.067773, 0.995257, -0.069782 };
+
+		voxelArray.groups[g2].rotation = math::Rotation{};
+		voxelArray.groups[g2].rotation.angle = PI32/4.0f;
+		voxelArray.groups[g2].rotation.axis = { 0.0f, 1.0f, 0.0f };
 	}
 
 	VkSamplerCreateInfo nearestFilterSamplerInfo = {};
@@ -1947,6 +1960,7 @@ int main(void) {
 	const f32 max_timestep = 1.0f / 60.0f;
 	math::Vector3 cameraPosition = {0.0f, 2.0f, 2.0f};
 	const math::Vector3 zAxis = {0.0f, 0.0f, 1.0f};
+	const math::Vector3 negativeZAxis = {0.0f, 0.0f, -1.0f};
 	
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
@@ -2013,11 +2027,11 @@ int main(void) {
 	RGBAColorF32 selectedVoxelColorBlend = { 1.0f, 1.0f, 0.0f, 0.1f };
 
 	f32 cameraPitch = 0.0f;
-	f32 cameraYaw = -PI32 / 2;
+	f32 cameraYaw = 0.0f;
 	math::Vector3 cameraDirection = {
-		cosf(cameraYaw) * cosf(cameraPitch),
+		cosf(cameraYaw - PI32 / 2) * cosf(cameraPitch),
 		sinf(cameraPitch),
-		sinf(cameraYaw) * cosf(cameraPitch),
+		sinf(cameraYaw - PI32 / 2) * cosf(cameraPitch),
 	};
 
 	math::Vector3 cameraRight = {};
@@ -2031,8 +2045,10 @@ int main(void) {
 
 	bool32 wasLeftCursorPressed = false;
 
+	bool32 wasCursorRayCasted = false;
 	math::Vector3 cursorRay = cameraDirection;
 	math::Vector3 cursorRayOrigin = cameraPosition;
+	math::Rotation cursorRayOrientation = math::Rotation{};
 
 	printf("%f seconds to bootup\n", (f32)glfwGetTime() - loadStartTime);
 	/* Loop until the user closes the window */
@@ -2093,14 +2109,13 @@ int main(void) {
 		}
 		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
 			if (!wasLeftCursorPressed) {
-				//assume w is 1. In Vulkan, z axis points toward the screen. In OpenGL, it points away from the screen
-				math::Vector4 cursorInClipSpace = math::Vector4{2 * ((f32) cursorX / (f32) windowWidth) - 1.0f, 2 * ((f32)cursorY / (f32)windowHeight) - 1.0f, 1.0f, 1.0f};
+				math::Vector4 cursorInClipSpace = math::Vector4{2 * ((f32) cursorX / (f32) windowWidth) - 1.0f, 2 * ((f32)cursorY / (f32)windowHeight) - 1.0f, -1.0f, 1.0f};
 
 				math::Matrix4 invProjection = math::inverseMatrix(ub.projection);
 
 				math::Vector4 cursorInViewSpace = math::multiplyMatrixVector(invProjection, cursorInClipSpace);
 
-				cursorInViewSpace = math::Vector4{cursorInViewSpace.x, cursorInViewSpace.y, 1.0f, 0.0f};
+				cursorInViewSpace = math::Vector4{cursorInViewSpace.x, cursorInViewSpace.y, -1.0f, 0.0f};
 
 				math::Matrix4 invView = math::inverseMatrix(ub.view);
 
@@ -2108,7 +2123,21 @@ int main(void) {
 				cursorRay = math::Vector3{cursorInWorldSpaceVec4.x, cursorInWorldSpaceVec4.y, cursorInWorldSpaceVec4.z}.normalize();
 				cursorRayOrigin = cameraPosition;
 
-				printf("cursor: (%f, %f).\ncursor in world space: (%f, %f, %f).\n", cursorX, cursorY, cursorRay.x, cursorRay.y, cursorRay.z);
+				cursorRayOrientation = math::convertEulerAnglesToRotation(math::Vector3{ cameraPitch, -cameraYaw, 0.0f });
+
+				f32 cursorRayAngleFromCameraDirection = math::getAngleBetweenTwoVectors(cameraDirection, cursorRay);
+
+				math::Vector3 cursorNormal = cameraDirection.cross(cursorRay).normalize();
+
+				cursorRayOrientation = math::multiplyRotations(cursorRayOrientation, math::Rotation{ cursorRayAngleFromCameraDirection, cursorNormal });
+
+				wasCursorRayCasted = 1;
+
+				printf("cursor: (%f, %f).\ncursor ray: (%f, %f, %f).\ncursor ray orientation: angle=%f, axis=(%f, %f, %f)\nangle between camera direction and cursor: %f\n\n", 
+					cursorX, cursorY,
+					cursorRay.x, cursorRay.y, cursorRay.z, 
+					cursorRayOrientation.angle, cursorRayOrientation.axis.x, cursorRayOrientation.axis.y, cursorRayOrientation.axis.z,
+					cursorRayAngleFromCameraDirection);
 			}
 			wasLeftCursorPressed = 1;
 		}
@@ -2128,9 +2157,9 @@ int main(void) {
 			}
 
 			cameraDirection = {
-				cosf(cameraYaw) * cosf(cameraPitch),
+				cosf(cameraYaw - PI32 / 2) * cosf(cameraPitch),
 				sinf(cameraPitch),
-				sinf(cameraYaw) * cosf(cameraPitch),
+				sinf(cameraYaw - PI32 / 2) * cosf(cameraPitch),
 			};
 
 			f32 cameraSpeed = 5;
@@ -2249,7 +2278,7 @@ int main(void) {
 				//if part of a group, the voxel's world position is now relative to the group's world position.
 				VoxelGroup* group = &voxelArray.groups[voxelArray.voxelsGroupIndex[i]];
 				worldPosition = math::rotateVector(worldPosition, group->rotation);
-				worldPosition = worldPosition.add(group->worldPosition);
+				worldPosition = worldPosition.add(group->worldPosition.scale(voxelUnitsToWorldUnits));
 				rotationMatrix = math::createRotationMatrix(group->rotation);
 			}
 			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), worldPosition);
@@ -2298,12 +2327,26 @@ int main(void) {
 			gpuObjectData.count += 1;
 		}
 
-		const f32 cursorRayScale = 100.0f;
-		math::Vector3 cursorRayPoint = cursorRay.scale(cursorRayScale);
-		{
-			math::Rotation qPitch = math::Rotation{ cameraPitch, {1.0f, 0.0f, 0.0f} };
-			math::Rotation qYaw = math::Rotation{ cameraYaw, {0.0f, 1.0f, 0.0f } };
+		if (wasCursorRayCasted) {
+			const f32 cursorRayOriginOffset = 2.0f;
+			math::Vector3 cursorRayMidpoint = cursorRayOrigin.add(cursorRay.scale(cursorRayOriginOffset));
+
+			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), cursorRayMidpoint);
+			model = model.multiply(math::createRotationMatrix(cursorRayOrientation));
+			model = math::scaleMatrix(model, math::Vector3{0.25f, 0.25f, 2.0f});
+			gpuObjectData.models[gpuObjectData.count] = model;
+			gpuObjectData.rgbaColors[gpuObjectData.count] = RGBAColorF32{0.7f, 1.0f, 0.0f, 1.0f};
+			gpuObjectData.count += 1;
 		}
+
+
+		math::Rotation cameraOrientation = math::convertEulerAnglesToRotation(math::Vector3{ cameraPitch, -cameraYaw, 0.0f });
+		math::Matrix4 model = math::initIdentityMatrix();
+		model = model.multiply(math::createRotationMatrix(cameraOrientation));
+		model = math::scaleMatrix(model, math::Vector3{0.5f, 0.5f, 2.0f});
+		gpuObjectData.models[gpuObjectData.count] = model;
+		gpuObjectData.rgbaColors[gpuObjectData.count] = RGBAColorF32{1.0f, 0.5f, 0.0f, 1.0f};
+		gpuObjectData.count += 1;
 
 		memcpy(objectTransformBuffers[frameCounter].mappedData, gpuObjectData.models, sizeof(math::Matrix4)*gpuObjectData.count);
 		memcpy(objectColorBuffers[frameCounter].mappedData, gpuObjectData.rgbaColors, sizeof(RGBAColorF32)*gpuObjectData.count);
