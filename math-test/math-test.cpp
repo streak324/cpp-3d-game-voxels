@@ -197,24 +197,35 @@ int main() {
 		}
 	}
 	{
-		math::Quaternion wq = math::Quaternion{0.6f, {0.38, 0.65, 0.27}};
-		math::Rotation wr = math::Rotation{math::radians(-106.0f), {-0.47, -0.81, -0.33} };
-		math::Rotation wr1 = math::Rotation{ math::radians(106.0f), {0.47, 0.81, 0.33} };
+
+		struct testCase {
+			math::Quaternion wq; 
+			math::Rotation wr; 
+		};
+
+		testCase testCases[] = {
+			{
+				math::Quaternion{1.0f, {0.0f, 0.0f, 0.0f}},
+				math::Rotation{math::radians(0.0f), {1.0f, 0.0f, 0.0f}},
+			},
+		};
 
 		const f32 rotationToQuaternionTolerance = 1.0f / 128.0f;
+		for (int i = 0; i < sizeof(testCases) / sizeof(testCases[0]); i++) {
+			math::Quaternion wq = testCases[i].wq;
+			math::Rotation wr = testCases[i].wr;
+			math::Quaternion gq = math::convertRotationToQuaternion(wr);
+			if (!math::isWithinTolerance(gq.real, wq.real, rotationToQuaternionTolerance) || !math::isVectorWithinTolerance(gq.vector, wq.vector, rotationToQuaternionTolerance)) {
+				printf("quaternions do not match. test case %d\n", i);
+				return 1;
+			}
 
-		math::Quaternion gq = math::convertRotationToQuaternion(wr);
-		if (!math::isWithinTolerance(gq.real, wq.real, rotationToQuaternionTolerance) || !math::isVectorWithinTolerance(gq.vector, wq.vector, rotationToQuaternionTolerance)) {
-			printf("quaternions do not match.\n");
-			return 1;
-		}
-
-		const f32 quaternionToRotationTolerance = 1.0f / 128.0f;
-		math::Rotation gr = math::convertQuaternionToRotation(wq);
-		if ((!math::isWithinTolerance(gr.angle, wr.angle, quaternionToRotationTolerance) || !math::isVectorWithinTolerance(gr.axis, wr.axis, quaternionToRotationTolerance)) &&
-			(!math::isWithinTolerance(gr.angle, wr1.angle, quaternionToRotationTolerance) || !math::isVectorWithinTolerance(gr.axis, wr1.axis, quaternionToRotationTolerance))) {
-			printf("rotations do not match.\n");
-			return 1;
+			const f32 quaternionToRotationTolerance = 1.0f / 128.0f;
+			math::Rotation gr = math::convertQuaternionToRotation(wq);
+			if (!math::isWithinTolerance(gr.angle, wr.angle, quaternionToRotationTolerance) || !math::isVectorWithinTolerance(gr.axis, wr.axis, quaternionToRotationTolerance)) {
+				printf("rotations do not match. test case %d\n", i);
+				return 1;
+			}
 		}
 	}
 

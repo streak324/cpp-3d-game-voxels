@@ -83,7 +83,7 @@ namespace math {
 
 	f32 radians(f32 degrees);
 
-
+	Quaternion normalizeQuaternion(Quaternion q);
 	Vector3 rotateVector(Vector3 a, Rotation rotation);
 	Matrix4 createRotationMatrix(Rotation rotation);
 	Quaternion convertRotationToQuaternion(Rotation r);
