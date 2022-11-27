@@ -85,6 +85,22 @@ namespace math {
 		return r;
 	}
 
+	Vector4 multiplyMatrixVector(Matrix4 m, Vector4 v) {
+		Matrix4 vm = {};
+		vm.e.m00 = v.x;
+		vm.e.m10 = v.y;
+		vm.e.m20 = v.z;
+		vm.e.m30 = v.w;
+		Matrix4 rm = m.multiply(vm);
+		Vector4 r = {
+			rm.e.m00,
+			rm.e.m10,
+			rm.e.m20,
+			rm.e.m30,
+		};
+		return r;
+	}
+
 	Matrix4 initIdentityMatrix() {
 		Matrix4 m  = {};
 		m.e.m00 = 1.0;
@@ -277,11 +293,33 @@ namespace math {
 		return quat;
 	}
 
+	Quaternion convertRotationToQuaternion(Rotation r) {
+		Quaternion q = {};
+		q.real = cosf(0.5f * r.angle);
+		q.vector = r.axis.scale(sinf(0.5f * r.angle));
+		return q;
+	}
+
+	Rotation convertQuaternionToRotation(Quaternion q) {
+		const f32 tolerance = 1.0f / (64.0f * 1024.0f);
+		f32 angle = 2.0f * acosf(q.real);
+		f32 sinAngle = sinf(0.5f * angle);
+
+		if (withinTolerance(angle, 0.0f, tolerance)) {
+			return Rotation{ angle, math::Vector3{1.0f, 0.0f, 0.0f} };
+		}
+
+		Rotation r = {};
+		r.angle = angle;
+		r.axis = q.vector.scale(1.0f / sinAngle);
+		return r;
+	}
+
 	Vector3 rotateVector(Vector3 a, Rotation rotation) {
-		_assert(isUnitVector(rotation.unit));
+		_assert(isUnitVector(rotation.axis));
 		Quaternion q = {
 			cosf(0.5f*rotation.angle),
-			rotation.unit.scale(sinf(0.5f*rotation.angle)),
+			rotation.axis.scale(sinf(0.5f*rotation.angle)),
 		};
 		Vector3 cross = q.vector.cross(a);
 		Vector3 crossV = q.vector.cross(cross);
@@ -290,10 +328,10 @@ namespace math {
 	}
 
 	Matrix4 createRotationMatrix(Rotation rotation) {
-		_assert(isUnitVector(rotation.unit));
+		_assert(isUnitVector(rotation.axis));
 		Quaternion q = {
 			cosf(0.5f*rotation.angle),
-			rotation.unit.scale(sinf(0.5f*rotation.angle)),
+			rotation.axis.scale(sinf(0.5f*rotation.angle)),
 		};
 		Matrix4 m = initIdentityMatrix();
 
@@ -323,5 +361,14 @@ namespace math {
 
 	bool32 withinTolerance(f32 got, f32 want, f32 tolerance) {
 		return got - tolerance <= want && got + tolerance >= want;
+	}
+
+
+	bool32 isVectorWithinTolerance(Vector3 got, Vector3 want, f32 tolerance) {
+		return withinTolerance(got.x, want.x, tolerance) && withinTolerance(got.y, want.y, tolerance) && withinTolerance(got.z, want.z, tolerance);
+	}
+
+	f32 getAngleBetweenTwoVectors(Vector3 a, Vector3 b) {
+		return acosf(a.dot(b) / (a.length() * b.length()));
 	}
 };

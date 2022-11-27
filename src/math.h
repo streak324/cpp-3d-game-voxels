@@ -22,6 +22,10 @@ namespace math {
 		Vector3 project(Vector3 onto);
 	};
 
+	struct Vector4 {
+		f32 x, y, z, w;
+	};
+
 	union Matrix4 {
 		struct array
 		{
@@ -51,7 +55,8 @@ namespace math {
 	*/
 	struct Rotation {
 		f32 angle;
-		Vector3 unit;
+		//must be a unit vector
+		Vector3 axis;
 	};
 
 	struct Quaternion {
@@ -74,10 +79,14 @@ namespace math {
 	f32 calculateDeterminant(Matrix4 m);
 	Matrix4 inverseMatrix(Matrix4 m);
 
+	Vector4 multiplyMatrixVector(Matrix4 m, Vector4 v);
+
 	f32 radians(f32 degrees);
 
 	Vector3 rotateVector(Vector3 a, Rotation rotation);
 	Matrix4 createRotationMatrix(Rotation rotation);
+	Quaternion convertRotationToQuaternion(Rotation r);
+	Rotation convertQuaternionToRotation(Quaternion q);
 
 	struct Plane{
 		Vector3 normal; // Plane normal. for any point x on the plane, dot(normal, x) = d
@@ -90,6 +99,10 @@ namespace math {
 	void lookAtVectors(Vector3 direction, Vector3* right, Vector3* up);
 
 	bool32 withinTolerance(f32 got, f32 want, f32 tolerance);
+	bool32 isVectorWithinTolerance(Vector3 got, Vector3 want, f32 tolerance);
+
+	f32 getAngleBetweenTwoVectors(Vector3 a, Vector3 b);
+
 }
 
 #endif

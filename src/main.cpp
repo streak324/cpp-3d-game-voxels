@@ -1946,7 +1946,7 @@ int main(void) {
 	f64 lastFrameDelta = glfwGetTime();
 	const f32 max_timestep = 1.0f / 60.0f;
 	math::Vector3 cameraPosition = {0.0f, 2.0f, 2.0f};
-	math::Vector3 negativeZAxis = {0.0f, 0.0f, -1.0f};
+	const math::Vector3 zAxis = {0.0f, 0.0f, 1.0f};
 	
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
@@ -2027,7 +2027,12 @@ int main(void) {
 	VkClearValue clearColor = {};
 	clearColor.color = { 0.0f, 0.0f, 0.0f, 1.0f };
 
+	UniformBufferData ub = {};
+
 	bool32 wasLeftCursorPressed = false;
+
+	math::Vector3 cursorRay = cameraDirection;
+	math::Vector3 cursorRayOrigin = cameraPosition;
 
 	printf("%f seconds to bootup\n", (f32)glfwGetTime() - loadStartTime);
 	/* Loop until the user closes the window */
@@ -2088,14 +2093,22 @@ int main(void) {
 		}
 		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
 			if (!wasLeftCursorPressed) {
-				//z is -1, because the z axis is pointing away from the screen in our system.
-				//assume w is  1
-				math::Vector3 cursorInClipSpace = math::Vector3{2 * (-0.5f + ((f32) cursorX / (f32) windowWidth)), 2 * (-0.5f + ((f32)cursorY / (f32)windowHeight)), -1.0f};
+				//assume w is 1. In Vulkan, z axis points toward the screen. In OpenGL, it points away from the screen
+				math::Vector4 cursorInClipSpace = math::Vector4{2 * ((f32) cursorX / (f32) windowWidth) - 1.0f, 2 * ((f32)cursorY / (f32)windowHeight) - 1.0f, 1.0f, 1.0f};
 
-				//cursorInEyeSpace = 
+				math::Matrix4 invProjection = math::inverseMatrix(ub.projection);
 
-				printf("cursor: (%f, %f).\ncursor to clip space: (%f, %f, %f).\n", cursorX, cursorY, cursorInClipSpace.x, cursorInClipSpace.y, cursorInClipSpace.z);
+				math::Vector4 cursorInViewSpace = math::multiplyMatrixVector(invProjection, cursorInClipSpace);
 
+				cursorInViewSpace = math::Vector4{cursorInViewSpace.x, cursorInViewSpace.y, 1.0f, 0.0f};
+
+				math::Matrix4 invView = math::inverseMatrix(ub.view);
+
+				math::Vector4 cursorInWorldSpaceVec4 = math::multiplyMatrixVector(invView, cursorInViewSpace);
+				cursorRay = math::Vector3{cursorInWorldSpaceVec4.x, cursorInWorldSpaceVec4.y, cursorInWorldSpaceVec4.z}.normalize();
+				cursorRayOrigin = cameraPosition;
+
+				printf("cursor: (%f, %f).\ncursor in world space: (%f, %f, %f).\n", cursorX, cursorY, cursorRay.x, cursorRay.y, cursorRay.z);
 			}
 			wasLeftCursorPressed = 1;
 		}
@@ -2203,9 +2216,9 @@ int main(void) {
 		scissor.extent = swapchain.extent;
 		vkCmdSetScissor(commandBuffers[frameCounter], 0, 1, &scissor);
 
-		UniformBufferData ub = {};
 		f32 scale = 2.0f;
 
+		ub = {};
 		ub.view = math::lookAt(cameraPosition, cameraPosition.add(cameraDirection), math::Vector3{0.0f, 1.0f, 0.0f});
 		ub.projection = math::createPerspective(math::radians(70.0f), (f32)swapchain.extent.width/(f32)swapchain.extent.height, 0.1f, 100.0f);
 
@@ -2216,13 +2229,13 @@ int main(void) {
 
 		memcpy(uniformBuffers[frameCounter].mappedData, &ub, sizeof(ub));
 
-		voxelArray.groups[0].rotation.unit = math::Vector3{ 1.0f, 0.0f, 0.0f };
+		voxelArray.groups[0].rotation.axis = math::Vector3{ 1.0f, 0.0f, 0.0f };
 		voxelArray.groups[0].rotation.angle = fmodf((float) glfwGetTime(), TAU32);
 
-		voxelArray.groups[1].rotation.unit = math::Vector3{ 0.0f, 1.0f, 0.0f };
+		voxelArray.groups[1].rotation.axis = math::Vector3{ 0.0f, 1.0f, 0.0f };
 		voxelArray.groups[1].rotation.angle = fmodf((float) glfwGetTime(), TAU32);
 
-		voxelArray.groups[2].rotation.unit = math::Vector3{ 1.0f, 0.0f, 1.0f }.normalize();
+		voxelArray.groups[2].rotation.axis = math::Vector3{ 1.0f, 0.0f, 1.0f }.normalize();
 		voxelArray.groups[2].rotation.angle = fmodf((float) glfwGetTime(), TAU32);
 
 		const f32 voxelUnitsToWorldUnits = 0.25f;
@@ -2285,6 +2298,13 @@ int main(void) {
 			gpuObjectData.count += 1;
 		}
 
+		const f32 cursorRayScale = 100.0f;
+		math::Vector3 cursorRayPoint = cursorRay.scale(cursorRayScale);
+		{
+			math::Rotation qPitch = math::Rotation{ cameraPitch, {1.0f, 0.0f, 0.0f} };
+			math::Rotation qYaw = math::Rotation{ cameraYaw, {0.0f, 1.0f, 0.0f } };
+		}
+
 		memcpy(objectTransformBuffers[frameCounter].mappedData, gpuObjectData.models, sizeof(math::Matrix4)*gpuObjectData.count);
 		memcpy(objectColorBuffers[frameCounter].mappedData, gpuObjectData.rgbaColors, sizeof(RGBAColorF32)*gpuObjectData.count);
 
@@ -2305,7 +2325,6 @@ int main(void) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
 		if (showImGuiDemoWindow) {
 			ImGui::ShowDemoWindow(&showImGuiDemoWindow);
 		}

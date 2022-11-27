@@ -167,6 +167,56 @@ int main() {
 			}
 		}
 	}
+	{
+		struct testCase {
+			math::Matrix4 m;
+			math::Vector4 v;
+			math::Vector4 want;
+		};
+
+		testCase testCases[] = {
+			{
+				math::initIdentityMatrix(),
+				math::Vector4 {1.0f, 2.0f, 3.0f, 1.0f},
+				math::Vector4 {1.0f, 2.0f, 3.0f, 1.0f},
+			},
+			{
+				math::scaleMatrix(math::initIdentityMatrix(), 2.0f),
+				math::Vector4 {1.0f, 2.0f, 3.0f, 1.0f},
+				math::Vector4 {2.0f, 4.0f, 6.0f, 1.0f},
+			},
+		};
+
+		for (int i = 0; i < sizeof(testCases) / sizeof(testCases[0]); i++) {
+			math::Vector4 got = math::multiplyMatrixVector(testCases[i].m, testCases[i].v);
+			math::Vector4 want = testCases[i].want;
+			if (got.x != want.x || got.y != want.y || got.z != want.z) {
+				printf("multiplying matrices and vectors failed at test case %d.\n\twanted (%f, %f, %f). got (%f, %f, %f)\n", i, want.x, want.y, want.z, got.x, got.y, got.z);
+				return 1;
+			}
+		}
+	}
+	{
+		math::Quaternion wq = math::Quaternion{ 0.6f, {0.38, 0.65, 0.27} };
+		math::Rotation wr = math::Rotation{ math::radians(-106.0f), {-0.47, -0.81, -0.33} };
+		math::Rotation wr1 = math::Rotation{ math::radians(106.0f), {0.47, 0.81, 0.33} };
+
+		const f32 rotationToQuaternionTolerance = 1.0f / 128.0f;
+
+		math::Quaternion gq = math::convertRotationToQuaternion(wr);
+		if (!math::withinTolerance(gq.real, wq.real, rotationToQuaternionTolerance) || !math::isVectorWithinTolerance(gq.vector, wq.vector, rotationToQuaternionTolerance)) {
+			printf("quaternions do not match.\n");
+			return 1;
+		}
+
+		const f32 quaternionToRotationTolerance = 1.0f / 128.0f;
+		math::Rotation gr = math::convertQuaternionToRotation(wq);
+		if ((!math::withinTolerance(gr.angle, wr.angle, quaternionToRotationTolerance) || !math::isVectorWithinTolerance(gr.axis, wr.axis, quaternionToRotationTolerance)) &&
+			(!math::withinTolerance(gr.angle, wr1.angle, quaternionToRotationTolerance) || !math::isVectorWithinTolerance(gr.axis, wr1.axis, quaternionToRotationTolerance))) {
+			printf("rotations do not match.\n");
+			return 1;
+		}
+	}
 
 	printf("Successfully completed the tests!!!\n");
 
