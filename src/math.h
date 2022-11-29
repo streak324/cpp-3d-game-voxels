@@ -8,8 +8,13 @@
 #define TAU32 6.2831853071f
 
 namespace math {
-	struct Vector3 {
-		f32 x, y, z;
+	union Vector3 {
+		struct {
+			f32 v[3];
+		};
+		struct {
+			f32 x, y, z;
+		};
 
 		Vector3 add(Vector3 b);
 		Vector3 sub(Vector3 b);
@@ -90,14 +95,6 @@ namespace math {
 	Rotation convertQuaternionToRotation(Quaternion q);
 	Rotation multiplyRotations(Rotation a, Rotation b);
 	Rotation convertEulerAnglesToRotation(math::Vector3 euler);
-
-	struct Plane{
-		Vector3 normal; // Plane normal. for any point x on the plane, dot(normal, x) = d
-		float d; //the dot product between the plane normal and any point on the plane. d = dot(normal, x). If the plane normal is a unit vector, d is also the distance away from the origin
-	};
-
-	bool32 isSegmentLineIntersectingPlane(Plane plane, Vector3 pointA, Vector3 pointB, Vector3* q);
-
 
 	void lookAtVectors(Vector3 direction, Vector3* right, Vector3* up);
 

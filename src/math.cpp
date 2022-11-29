@@ -386,15 +386,6 @@ namespace math {
 		return m;
 	}
 
-	bool32 isSegmentLineIntersectingPlane(Plane plane, Vector3 pointA, Vector3 pointB, Vector3* q) { 
-		f32 t = (plane.d - plane.normal.dot(pointA)) / plane.normal.dot(pointB.sub(pointA));
-		if (t >= 0.0f && t <= 1.0f) {
-			*q = pointA.add(pointB.sub(pointA).scale(t));
-			return 1;
-		}
-		return 0;
-	}
-
 	bool32 isWithinTolerance(f32 got, f32 want, f32 tolerance) {
 		return got - tolerance <= want && got + tolerance >= want;
 	}

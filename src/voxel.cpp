@@ -43,3 +43,13 @@ i32 addVoxelGroupFromVoxelRange(VoxelArray* voxelArray, u32 start, u32 end, math
 
 	return voxelArray->groupsCount-1;
 }
+
+
+
+math::Vector3 convertVoxelUnitsToWorldUnits(Vector3i v) {
+	return math::Vector3{ (f32)v.x, (f32)v.y, (f32) v.z }.scale(voxelUnitsToWorldUnits);
+}
+
+math::Vector3 convertVoxelUnitsToWorldUnits(Vector3ui v) {
+	return math::Vector3{ (f32)v.x, (f32)v.y, (f32) v.z }.scale(voxelUnitsToWorldUnits);
+}

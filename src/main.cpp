@@ -18,6 +18,7 @@
 #include "math.h"
 #include "voxel.h"
 #include "memory.h"
+#include "collision.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
@@ -1539,23 +1540,6 @@ int main(void) {
 		{ { -0.5f,  0.5f, -0.5f, }, { 1.0f, 1.0f, 1.0f, 1.0f, }, { 0.0f, 0.0f, } },
 	};
 
-	math::Vector3 cubeFrontFaceNormal = math::Vector3{ 0.0f, 0.0f, 1.0f };
-	math::Vector3 cubeBackFaceNormal = math::Vector3{ 0.0f, 0.0f, 1.0f };
-	math::Vector3 cubeLeftFaceNormal = math::Vector3{ -1.0f, 0.0f, 0.0f };
-	math::Vector3 cubeRightFaceNormal = math::Vector3{ 1.0f, 0.0f, 1.0f };
-	math::Vector3 cubeBottomFaceNormal = math::Vector3{ 0.0f, -1.0f, 0.0f };
-	math::Vector3 cubeTopFaceNormal = math::Vector3{ 0.0f, 1.0f, 0.0f };
-	
-	math::Plane cubePlanes[6] = {
-		//front
-		{ cubeFrontFaceNormal, 0.5f },
-		{ cubeBackFaceNormal, 0.5f },
-		{ cubeLeftFaceNormal, 0.5f },
-		{ cubeRightFaceNormal, 0.5f },
-		{ cubeBottomFaceNormal, 0.5f },
-		{ cubeTopFaceNormal, 0.5f },
-	};
-
 	const PositionVertex positionCubeVertices[36] = {
 		//front
 		{ { -0.5f, -0.5f,  0.5f, }, },
@@ -2133,11 +2117,30 @@ int main(void) {
 
 				wasCursorRayCasted = 1;
 
-				printf("cursor: (%f, %f).\ncursor ray: (%f, %f, %f).\ncursor ray orientation: angle=%f, axis=(%f, %f, %f)\nangle between camera direction and cursor: %f\n\n", 
-					cursorX, cursorY,
-					cursorRay.x, cursorRay.y, cursorRay.z, 
-					cursorRayOrientation.angle, cursorRayOrientation.axis.x, cursorRayOrientation.axis.y, cursorRayOrientation.axis.z,
-					cursorRayAngleFromCameraDirection);
+				//printf("cursor: (%f, %f).\ncursor ray: (%f, %f, %f).\ncursor ray orientation: angle=%f, axis=(%f, %f, %f)\nangle between camera direction and cursor: %f\n\n", 
+				//	cursorX, cursorY,
+				//	cursorRay.x, cursorRay.y, cursorRay.z, 
+				//	cursorRayOrientation.angle, cursorRayOrientation.axis.x, cursorRayOrientation.axis.y, cursorRayOrientation.axis.z,
+				//	cursorRayAngleFromCameraDirection);
+
+				selectedVoxelIndex = -1;
+				for (i32 i = 0; i < voxelArray.voxelsCount; i++) {
+					OBB o = {};
+					o.center = convertVoxelUnitsToWorldUnits(voxelArray.voxelsPosition[i]);
+					o.halfExtents = convertVoxelUnitsToWorldUnits(voxelArray.voxelsScale[i]).scale(0.5f);
+					o.orientation = math::Rotation{ 0.0f, {1.0f, 0.0f, 0.0f} };
+
+					i32 voxelGroupIndex = voxelArray.voxelsGroupIndex[i];
+					if (voxelGroupIndex >= 0) {
+						o.center = o.center.add(voxelArray.groups[voxelGroupIndex].worldPosition.scale(voxelUnitsToWorldUnits));
+						o.orientation = voxelArray.groups[voxelGroupIndex].rotation;
+					}
+					f32 tmin;
+					math::Vector3 q;
+					if (isRayIntersectingOBB(cursorRayOrigin, cursorRay, o, 100.0f, &tmin, &q)) {
+						selectedVoxelIndex = i;
+					}
+				}
 			}
 			wasLeftCursorPressed = 1;
 		}
@@ -2267,7 +2270,6 @@ int main(void) {
 		voxelArray.groups[2].rotation.axis = math::Vector3{ 1.0f, 0.0f, 1.0f }.normalize();
 		voxelArray.groups[2].rotation.angle = fmodf((float) glfwGetTime(), TAU32);
 
-		const f32 voxelUnitsToWorldUnits = 0.25f;
 		gpuObjectData.count = 0;
 
 		for (i32 i = 0; i < voxelArray.voxelsCount; i++) {
@@ -2328,12 +2330,12 @@ int main(void) {
 		}
 
 		if (wasCursorRayCasted) {
-			const f32 cursorRayOriginOffset = 2.0f;
-			math::Vector3 cursorRayMidpoint = cursorRayOrigin.add(cursorRay.scale(cursorRayOriginOffset));
+			const f32 cursorRayOriginOffset = 10.0f;
+			math::Vector3 cursorRayMidpoint = cursorRayOrigin.add(cursorRay.scale(cursorRayOriginOffset * 0.5f + 1.0f));
 
 			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), cursorRayMidpoint);
 			model = model.multiply(math::createRotationMatrix(cursorRayOrientation));
-			model = math::scaleMatrix(model, math::Vector3{0.25f, 0.25f, 2.0f});
+			model = math::scaleMatrix(model, math::Vector3{0.125f, 0.125f, cursorRayOriginOffset});
 			gpuObjectData.models[gpuObjectData.count] = model;
 			gpuObjectData.rgbaColors[gpuObjectData.count] = RGBAColorF32{0.7f, 1.0f, 0.0f, 1.0f};
 			gpuObjectData.count += 1;

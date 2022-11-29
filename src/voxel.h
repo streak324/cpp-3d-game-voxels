@@ -5,6 +5,7 @@
 #include "math.h"
 #include "memory.h"
 
+const f32 voxelUnitsToWorldUnits = 0.25f;
 
 struct RGBAColorF32 {
 	f32 r, b, g, a;
@@ -36,6 +37,7 @@ struct VoxelArray {
 
 	RGBAColorF32* colors;
 	Vector3i* voxelsPosition;
+	//TODO: rename to be voxelsHalfExtents
 	Vector3ui* voxelsScale;
 	i32* voxelsGroupIndex;
 
@@ -48,5 +50,8 @@ struct VoxelArray {
 void initVoxelArray(VoxelArray* voxelArray, MemoryAllocator* memoryAllocator, i32 voxelCapacity, i32 groupsCapacity);
 i32 addVoxel(VoxelArray* voxelArray, RGBAColorF32 color, Vector3i position, Vector3ui scale);
 i32 addVoxelGroupFromVoxelRange(VoxelArray* voxelArray, u32 start, u32 end, math::Vector3 worldPosition);
+
+math::Vector3 convertVoxelUnitsToWorldUnits(Vector3i v);
+math::Vector3 convertVoxelUnitsToWorldUnits(Vector3ui v);
 
 #endif

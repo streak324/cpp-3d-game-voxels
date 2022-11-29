@@ -3,31 +3,6 @@
 
 int main() {
 	{
-		math::Plane plane{};
-		plane.normal = math::Vector3{ 0.0f, 0.0f, 1.0f };
-		plane.d = 0.5f;
-
-		math::Vector3 pointA = { 0.0f, 0.2f, 0.0625f };
-
-		math::Vector3 pointB = { 0.0f, 0.2f, 100.0f };
-
-		bool32 want = 1;
-		math::Vector3 wantPoint = { 0.0f, 0.2f, 0.5f };
-
-		math::Vector3 q = {};
-		bool32 got = math::isSegmentLineIntersectingPlane(plane, pointA, pointB, &q);
-		if (got != want) {
-			printf("want %d, got %d", want, got);
-			return 1;
-		}
-
-		if (q.x != wantPoint.x || q.y != wantPoint.y || q.z != wantPoint.z) {
-			printf("want (%f, %f, %f). got (%f, %f, %f)", wantPoint.x, wantPoint.y, wantPoint.z, q.x, q.y, q.z);
-			return -1;
-		}
-	}
-
-	{
 
 		math::Matrix4 m = {};
 
