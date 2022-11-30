@@ -38,6 +38,10 @@ bool32 isRayIntersectingOBB(math::Vector3 rayOrigin, math::Vector3 rayDirection,
 	AABB a = {};
 	a.min = o.halfExtents.scale(-1);
 	a.max = o.halfExtents;
-	return isRayIntersectingAABB(rayOriginRelative, rayDirectionRelative, a, tmax, tmin, q);
+	if (isRayIntersectingAABB(rayOriginRelative, rayDirectionRelative, a, tmax, tmin, q)) {
+		*q = rayOrigin.add(rayDirection.scale(*tmin));
+		return 1;
+	}
+	return 0;
 }
 

@@ -2029,6 +2029,9 @@ int main(void) {
 	math::Vector3 cursorRay = cameraDirection;
 	math::Vector3 cursorRayOrigin = cameraPosition;
 	math::Quaternion cursorRayOrientation = math::Quaternion{};
+	
+	bool32 wasCursorRayHit = 0;
+	math::Vector3 cursorRayHit = {};
 
 	printf("%f seconds to bootup\n", (f32)glfwGetTime() - loadStartTime);
 	/* Loop until the user closes the window */
@@ -2114,6 +2117,9 @@ int main(void) {
 				wasCursorRayCasted = 1;
 
 				selectedVoxelIndex = -1;
+				const f32 tmax = 100.0f;
+				wasCursorRayHit = 0;
+				f32 tmin = tmax;
 				for (i32 i = 0; i < voxelArray.voxelsCount; i++) {
 					OBB o = {};
 					o.center = convertVoxelUnitsToWorldUnits(voxelArray.voxelsPosition[i]);
@@ -2122,13 +2128,16 @@ int main(void) {
 
 					i32 voxelGroupIndex = voxelArray.voxelsGroupIndex[i];
 					if (voxelGroupIndex >= 0) {
-						o.center = o.center.add(voxelArray.groups[voxelGroupIndex].worldPosition.scale(voxelUnitsToWorldUnits));
+						o.center = math::rotateVector(o.center, voxelArray.groups[voxelGroupIndex].rotation).add(voxelArray.groups[voxelGroupIndex].worldPosition.scale(voxelUnitsToWorldUnits));
 						o.orientation = voxelArray.groups[voxelGroupIndex].rotation;
 					}
-					f32 tmin;
+					f32 t;
 					math::Vector3 q;
-					if (isRayIntersectingOBB(cursorRayOrigin, cursorRay, o, 100.0f, &tmin, &q)) {
+					if (isRayIntersectingOBB(cursorRayOrigin, cursorRay, o, tmax, &t, &q) && t < tmin) {
+						tmin = t;
+						cursorRayHit = q;
 						selectedVoxelIndex = i;
+						wasCursorRayHit = 1;
 					}
 				}
 			}
@@ -2316,13 +2325,10 @@ int main(void) {
 			gpuObjectData.count += 1;
 		}
 
-		if (wasCursorRayCasted) {
-			const f32 cursorRayOriginOffset = 10.0f;
-			math::Vector3 cursorRayMidpoint = cursorRayOrigin.add(cursorRay.scale(cursorRayOriginOffset * 0.5f + 1.0f));
-
-			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), cursorRayMidpoint);
+		if (wasCursorRayHit) {
+			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), cursorRayHit);
 			model = model.multiply(math::createRotationMatrix(cursorRayOrientation));
-			model = math::scaleMatrix(model, math::Vector3{0.125f, 0.125f, cursorRayOriginOffset});
+			model = math::scaleMatrix(model, math::Vector3{0.125f, 0.125f, 0.125f});
 			gpuObjectData.models[gpuObjectData.count] = model;
 			gpuObjectData.rgbaColors[gpuObjectData.count] = RGBAColorF32{0.7f, 1.0f, 0.0f, 1.0f};
 			gpuObjectData.count += 1;
