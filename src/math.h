@@ -54,16 +54,6 @@ namespace math {
 		Matrix4 multiply(Matrix4 b);
 	};
 
-	/*
-		Quaternion, but in a slightly different representation.
-		[cos(angle/2), sinf(angle) * unit] 
-	*/
-	struct Rotation {
-		//must be a unit vector
-		f32 angle;
-		Vector3 axis;
-	};
-
 	struct Quaternion {
 		f32 real;
 		Vector3 vector;
@@ -89,12 +79,14 @@ namespace math {
 	f32 radians(f32 degrees);
 
 	Quaternion normalizeQuaternion(Quaternion q);
-	Vector3 rotateVector(Vector3 a, Rotation rotation);
-	Matrix4 createRotationMatrix(Rotation rotation);
-	Quaternion convertRotationToQuaternion(Rotation r);
-	Rotation convertQuaternionToRotation(Quaternion q);
-	Rotation multiplyRotations(Rotation a, Rotation b);
-	Rotation convertEulerAnglesToRotation(math::Vector3 euler);
+	Vector3 rotateVector(Vector3 a, Quaternion q);
+	Matrix4 createRotationMatrix(Quaternion q);
+	Quaternion createQuaternionRotation(f32 angle, math::Vector3 axis);
+	Quaternion multiplyQuaternions(Quaternion a, Quaternion b);
+	Quaternion convertEulerAnglesToQuaternionRotation(math::Vector3 euler);
+	f32 getRotationAngle(Quaternion q);
+	math::Vector3 getRotationAxis(Quaternion q);
+
 
 	void lookAtVectors(Vector3 direction, Vector3* right, Vector3* up);
 

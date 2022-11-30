@@ -15,7 +15,7 @@ struct AABB {
 struct OBB {
 	math::Vector3 center;
 	math::Vector3 halfExtents;
-	math::Rotation orientation;
+	math::Quaternion orientation;
 };
 
 bool32 isRayIntersectingAABB(math::Vector3 rayOrigin, math::Vector3 rayDirection, AABB a, f32 tmax, f32* tmin, math::Vector3 *q);

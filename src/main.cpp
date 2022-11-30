@@ -1750,13 +1750,9 @@ int main(void) {
 		u32 i2 = addVoxel(&voxelArray, { 0.5f, 0.0f, 1.0f, 1.0f }, Vector3i{ 0, 0, 0 }, Vector3ui{2, 2, 4});
 		i32 g1 = addVoxelGroupFromVoxelRange(&voxelArray, i1, i1, math::Vector3{ 0, 0, -50 });
 		i32 g2 = addVoxelGroupFromVoxelRange(&voxelArray, i2, i2, math::Vector3{ 0, 0, -60 });
-		voxelArray.groups[g1].rotation = math::Rotation{};
-		voxelArray.groups[g1].rotation.angle = 1.604749;
-		voxelArray.groups[g1].rotation.axis = { 0.067773, 0.995257, -0.069782 };
+		voxelArray.groups[g1].rotation = math::createQuaternionRotation(1.604749, { 0.067773, 0.995257, -0.069782 });
 
-		voxelArray.groups[g2].rotation = math::Rotation{};
-		voxelArray.groups[g2].rotation.angle = PI32/4.0f;
-		voxelArray.groups[g2].rotation.axis = { 0.0f, 1.0f, 0.0f };
+		voxelArray.groups[g2].rotation = math::createQuaternionRotation(PI32 / 4.0f, { 0.0f, 1.0f, 0.0f });
 	}
 
 	VkSamplerCreateInfo nearestFilterSamplerInfo = {};
@@ -2032,7 +2028,7 @@ int main(void) {
 	bool32 wasCursorRayCasted = false;
 	math::Vector3 cursorRay = cameraDirection;
 	math::Vector3 cursorRayOrigin = cameraPosition;
-	math::Rotation cursorRayOrientation = math::Rotation{};
+	math::Quaternion cursorRayOrientation = math::Quaternion{};
 
 	printf("%f seconds to bootup\n", (f32)glfwGetTime() - loadStartTime);
 	/* Loop until the user closes the window */
@@ -2107,28 +2103,22 @@ int main(void) {
 				cursorRay = math::Vector3{cursorInWorldSpaceVec4.x, cursorInWorldSpaceVec4.y, cursorInWorldSpaceVec4.z}.normalize();
 				cursorRayOrigin = cameraPosition;
 
-				cursorRayOrientation = math::convertEulerAnglesToRotation(math::Vector3{ cameraPitch, -cameraYaw, 0.0f });
+				cursorRayOrientation = math::convertEulerAnglesToQuaternionRotation(math::Vector3{ cameraPitch, -cameraYaw, 0.0f });
 
 				f32 cursorRayAngleFromCameraDirection = math::getAngleBetweenTwoVectors(cameraDirection, cursorRay);
 
 				math::Vector3 cursorNormal = cameraDirection.cross(cursorRay).normalize();
 
-				cursorRayOrientation = math::multiplyRotations(cursorRayOrientation, math::Rotation{ cursorRayAngleFromCameraDirection, cursorNormal });
+				cursorRayOrientation = math::multiplyQuaternions(cursorRayOrientation, math::createQuaternionRotation( cursorRayAngleFromCameraDirection, cursorNormal ));
 
 				wasCursorRayCasted = 1;
-
-				//printf("cursor: (%f, %f).\ncursor ray: (%f, %f, %f).\ncursor ray orientation: angle=%f, axis=(%f, %f, %f)\nangle between camera direction and cursor: %f\n\n", 
-				//	cursorX, cursorY,
-				//	cursorRay.x, cursorRay.y, cursorRay.z, 
-				//	cursorRayOrientation.angle, cursorRayOrientation.axis.x, cursorRayOrientation.axis.y, cursorRayOrientation.axis.z,
-				//	cursorRayAngleFromCameraDirection);
 
 				selectedVoxelIndex = -1;
 				for (i32 i = 0; i < voxelArray.voxelsCount; i++) {
 					OBB o = {};
 					o.center = convertVoxelUnitsToWorldUnits(voxelArray.voxelsPosition[i]);
 					o.halfExtents = convertVoxelUnitsToWorldUnits(voxelArray.voxelsScale[i]).scale(0.5f);
-					o.orientation = math::Rotation{ 0.0f, {1.0f, 0.0f, 0.0f} };
+					o.orientation = math::createQuaternionRotation( 0.0f, {1.0f, 0.0f, 0.0f} );
 
 					i32 voxelGroupIndex = voxelArray.voxelsGroupIndex[i];
 					if (voxelGroupIndex >= 0) {
@@ -2261,14 +2251,11 @@ int main(void) {
 
 		memcpy(uniformBuffers[frameCounter].mappedData, &ub, sizeof(ub));
 
-		voxelArray.groups[0].rotation.axis = math::Vector3{ 1.0f, 0.0f, 0.0f };
-		voxelArray.groups[0].rotation.angle = fmodf((float) glfwGetTime(), TAU32);
+		voxelArray.groups[0].rotation = math::createQuaternionRotation(fmodf((float)glfwGetTime(), TAU32), math::Vector3{ 1.0f, 0.0f, 0.0f });
 
-		voxelArray.groups[1].rotation.axis = math::Vector3{ 0.0f, 1.0f, 0.0f };
-		voxelArray.groups[1].rotation.angle = fmodf((float) glfwGetTime(), TAU32);
+		voxelArray.groups[1].rotation = math::createQuaternionRotation(fmodf((float)glfwGetTime(), TAU32), math::Vector3{ 0.0f, 1.0f, 0.0f });
 
-		voxelArray.groups[2].rotation.axis = math::Vector3{ 1.0f, 0.0f, 1.0f }.normalize();
-		voxelArray.groups[2].rotation.angle = fmodf((float) glfwGetTime(), TAU32);
+		voxelArray.groups[2].rotation = math::createQuaternionRotation(fmodf((float) glfwGetTime(), TAU32), math::Vector3{ 1.0f, 0.0f, 1.0f }.normalize());
 
 		gpuObjectData.count = 0;
 
@@ -2342,7 +2329,7 @@ int main(void) {
 		}
 
 
-		math::Rotation cameraOrientation = math::convertEulerAnglesToRotation(math::Vector3{ cameraPitch, -cameraYaw, 0.0f });
+		math::Quaternion cameraOrientation = math::convertEulerAnglesToQuaternionRotation(math::Vector3{ cameraPitch, -cameraYaw, 0.0f });
 		math::Matrix4 model = math::initIdentityMatrix();
 		model = model.multiply(math::createRotationMatrix(cameraOrientation));
 		model = math::scaleMatrix(model, math::Vector3{0.5f, 0.5f, 2.0f});

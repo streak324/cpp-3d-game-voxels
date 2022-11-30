@@ -26,7 +26,7 @@ struct Vector3ui {
 
 struct VoxelGroup {
 	math::Vector3 worldPosition;
-	math::Rotation rotation;
+	math::Quaternion rotation;
 	u32 start;
 	u32 end;
 };

@@ -32,8 +32,7 @@ bool32 isRayIntersectingAABB(math::Vector3 rayOrigin, math::Vector3 rayDirection
 }
 
 bool32 isRayIntersectingOBB(math::Vector3 rayOrigin, math::Vector3 rayDirection, OBB o, f32 tmax, f32* tmin, math::Vector3 *q) {
-	math::Rotation opp = o.orientation;
-	opp.angle = -opp.angle;
+	math::Quaternion opp = math::createQuaternionRotation(-math::getRotationAngle(o.orientation), math::getRotationAxis(o.orientation));
 	math::Vector3 rayOriginRelative = rotateVector(rayOrigin.sub(o.center), opp);
 	math::Vector3 rayDirectionRelative = rotateVector(rayDirection, opp);
 	AABB a = {};

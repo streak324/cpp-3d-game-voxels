@@ -279,6 +279,12 @@ namespace math {
 		return distsq <= 1.0f + epsilon && distsq >= 1.0f - epsilon;
 	}
 
+	bool isUnitVector(Quaternion q) {
+		f32 epsilon = 1 / 4096.0f;
+		f32 distsq = q.real * q.real + q.vector.x * q.vector.x + q.vector.y * q.vector.y + q.vector.z * q.vector.z;
+		return distsq <= 1.0f + epsilon && distsq >= 1.0f - epsilon;
+	}
+
 	// c = a * b
 	Quaternion multiplyQuaternions(Quaternion a, Quaternion b) {
 
@@ -308,34 +314,16 @@ namespace math {
 		};
 	}
 
-	Quaternion convertRotationToQuaternion(Rotation r) {
-		_assert(isUnitVector(r.axis));
+
+	Quaternion createQuaternionRotation(f32 angle, math::Vector3 axis) {
+		_assert(isUnitVector(axis));
 		Quaternion q = {};
-		q.real = cosf(0.5f * r.angle);
-		q.vector = r.axis.scale(sinf(0.5f * r.angle));
+		q.real = cosf(0.5f * angle);
+		q.vector = axis.scale(sinf(0.5f * angle));
 		return normalizeQuaternion(q);
 	}
 
-	Rotation convertQuaternionToRotation(Quaternion q) {
-		const f32 tolerance = 1.0f / (64.0f * 1024.0f);
-		f32 angle = 2.0f * acosf(q.real);
-		f32 sinAngle = sinf(0.5f * angle);
-
-		if (isWithinTolerance(angle, 0.0f, tolerance)) {
-			return Rotation{ angle, math::Vector3{1.0f, 0.0f, 0.0f} };
-		}
-
-		Rotation r = {};
-		r.angle = angle;
-		r.axis = q.vector.scale(1.0f / sinAngle);
-		return r;
-	}
-
-	Rotation multiplyRotations(Rotation a, Rotation b) {
-		return convertQuaternionToRotation(multiplyQuaternions(convertRotationToQuaternion(a), convertRotationToQuaternion(b)));
-	}
-
-	Rotation convertEulerAnglesToRotation(math::Vector3 euler) {
+	Quaternion convertEulerAnglesToQuaternionRotation(math::Vector3 euler) {
 		f32 cosX = cosf(0.5f * euler.x);
 		f32 cosY = cosf(0.5f * euler.y);
 		f32 cosZ = cosf(0.5f * euler.z);
@@ -343,32 +331,42 @@ namespace math {
 		f32 sinY = sinf(0.5f * euler.y);
 		f32 sinZ = sinf(0.5f * euler.z);
 
-		return convertQuaternionToRotation(Quaternion{
+		return Quaternion{
 			cosX * cosY * cosZ + sinX * sinY * sinZ,
 			math::Vector3{
 				sinX * cosY * cosZ - cosX * sinY * sinZ,
 				cosX * sinY * cosZ + sinX * cosY * sinZ,
 				cosX * cosY * sinZ - sinX * sinY * cosZ,
 			},
-		});
+		};
 	}
 
-	Vector3 rotateVector(Vector3 a, Rotation rotation) {
-		_assert(isUnitVector(rotation.axis));
-		Quaternion q = {
-			cosf(0.5f*rotation.angle),
-			rotation.axis.scale(sinf(0.5f*rotation.angle)),
-		};
+	f32 getRotationAngle(Quaternion q) {
+		return 2.0f * acosf(q.real);
+	}
+
+	math::Vector3 getRotationAxis(Quaternion q) {
+		const f32 tolerance = 1.0f / (64.0f * 1024.0f);
+		f32 sinAngle =  1.0f - q.real * q.real;
+
+		if (isWithinTolerance(sinAngle, 0.0f, tolerance)) {
+			return math::Vector3{1.0f, 0.0f, 0.0f};
+		}
+
+		return q.vector.scale(1.0f / sinAngle).normalize();
+	}
+
+
+	Vector3 rotateVector(Vector3 a, Quaternion q) {
+		_assert(isUnitVector(q));
 		Vector3 cross = q.vector.cross(a);
 		Vector3 crossV = q.vector.cross(cross);
 		
 		return a.add(cross.scale(2*q.real)).add(crossV.scale(2));
 	}
 
-	Matrix4 createRotationMatrix(Rotation rotation) {
-		rotation.axis = rotation.axis.normalize();
-		_assert(isUnitVector(rotation.axis));
-		Quaternion q = convertRotationToQuaternion(rotation);
+	Matrix4 createRotationMatrix(Quaternion q) {
+		_assert(isUnitVector(q));
 		Matrix4 m = initIdentityMatrix();
 
 		m.e.m00 = 1 - 2 * (q.vector.y * q.vector.y + q.vector.z * q.vector.z);

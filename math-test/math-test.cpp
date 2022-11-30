@@ -175,29 +175,31 @@ int main() {
 
 		struct testCase {
 			math::Quaternion wq; 
-			math::Rotation wr; 
+			f32 rotationAngle;
+			math::Vector3 rotationAxis; 
 		};
 
 		testCase testCases[] = {
 			{
 				math::Quaternion{1.0f, {0.0f, 0.0f, 0.0f}},
-				math::Rotation{math::radians(0.0f), {1.0f, 0.0f, 0.0f}},
+				math::radians(0.0f), 
+				math::Vector3{1.0f, 0.0f, 0.0f},
 			},
 		};
 
 		const f32 rotationToQuaternionTolerance = 1.0f / 128.0f;
 		for (int i = 0; i < sizeof(testCases) / sizeof(testCases[0]); i++) {
 			math::Quaternion wq = testCases[i].wq;
-			math::Rotation wr = testCases[i].wr;
-			math::Quaternion gq = math::convertRotationToQuaternion(wr);
+			math::Quaternion gq = math::createQuaternionRotation(testCases[i].rotationAngle, testCases[i].rotationAxis);
 			if (!math::isWithinTolerance(gq.real, wq.real, rotationToQuaternionTolerance) || !math::isVectorWithinTolerance(gq.vector, wq.vector, rotationToQuaternionTolerance)) {
 				printf("quaternions do not match. test case %d\n", i);
 				return 1;
 			}
 
 			const f32 quaternionToRotationTolerance = 1.0f / 128.0f;
-			math::Rotation gr = math::convertQuaternionToRotation(wq);
-			if (!math::isWithinTolerance(gr.angle, wr.angle, quaternionToRotationTolerance) || !math::isVectorWithinTolerance(gr.axis, wr.axis, quaternionToRotationTolerance)) {
+			f32 gAngle = math::getRotationAngle(wq);
+			math::Vector3 gAxis = math::getRotationAxis(wq);
+			if (!math::isWithinTolerance(gAngle, testCases[i].rotationAngle, quaternionToRotationTolerance) || !math::isVectorWithinTolerance(gAxis, testCases[i].rotationAxis, quaternionToRotationTolerance)) {
 				printf("rotations do not match. test case %d\n", i);
 				return 1;
 			}
