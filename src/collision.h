@@ -18,6 +18,11 @@ struct OBB {
 	math::Quaternion orientation;
 };
 
+struct Ray {
+	math::Vector3 direction;
+	math::Vector3 origin;
+};
+
 bool32 isRayIntersectingAABB(math::Vector3 rayOrigin, math::Vector3 rayDirection, AABB a, f32 tmax, f32* tmin, math::Vector3 *q);
 bool32 isRayIntersectingOBB(math::Vector3 rayOrigin, math::Vector3 rayDirection, OBB o, f32 tmax, f32* tmin, math::Vector3 *q);
 

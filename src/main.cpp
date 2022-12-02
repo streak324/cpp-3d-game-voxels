@@ -655,6 +655,27 @@ VkResult createSwapchainAndRenderPass(
 	return VK_SUCCESS;
 }
 
+Ray calculateRayFromScreenToWorld(f32 cursorX, f32 cursorY, int windowWidth, int windowHeight, UniformBufferData ub, math::Vector3 cameraPosition) {
+	math::Vector4 cursorInClipSpace = math::Vector4{2 * ((f32)cursorX / (f32)windowWidth) - 1.0f, 2 * ((f32)cursorY / (f32)windowHeight) - 1.0f, -1.0f, 1.0f};
+
+	math::Matrix4 invProjection = math::inverseMatrix(ub.projection);
+
+	math::Vector4 cursorInViewSpace = math::multiplyMatrixVector(invProjection, cursorInClipSpace);
+
+	cursorInViewSpace = math::Vector4{cursorInViewSpace.x, cursorInViewSpace.y, -1.0f, 0.0f};
+
+	math::Matrix4 invView = math::inverseMatrix(ub.view);
+
+	math::Vector4 cursorInWorldSpaceVec4 = math::multiplyMatrixVector(invView, cursorInViewSpace);
+
+	Ray r = {};
+
+	r.direction = math::Vector3{cursorInWorldSpaceVec4.x, cursorInWorldSpaceVec4.y, cursorInWorldSpaceVec4.z}.normalize();
+	r.origin = cameraPosition;
+
+	return r;
+}
+
 int main(void) {
 	f64 loadStartTime = glfwGetTime();
 #ifndef NDEBUG
@@ -2003,7 +2024,7 @@ int main(void) {
 	i32 voxelGridWidth = 64;
 	i32 voxelGridHeight = 32;
 
-	i32 selectedVoxelIndex = 0;
+	i32 selectedVoxelIndex = -1;
 	RGBAColorF32 selectedVoxelColorBlend = { 1.0f, 1.0f, 0.0f, 0.1f };
 
 	f32 cameraPitch = 0.0f;
@@ -2023,15 +2044,15 @@ int main(void) {
 
 	UniformBufferData ub = {};
 
-	bool32 wasLeftCursorPressed = false;
+	bool32 isLeftCursorPressed = false;
 
 	bool32 wasCursorRayCasted = false;
-	math::Vector3 cursorRay = cameraDirection;
-	math::Vector3 cursorRayOrigin = cameraPosition;
 	math::Quaternion cursorRayOrientation = math::Quaternion{};
 	
-	bool32 wasCursorRayHit = 0;
-	math::Vector3 cursorRayHit = {};
+	bool32 isCursorRayHit = 0;
+	Ray cursorRay = {};
+	math::Vector3 cursorRayHitPoint = {};
+	f32 cursorRayHitDist = 100.0f;
 
 	printf("%f seconds to bootup\n", (f32)glfwGetTime() - loadStartTime);
 	/* Loop until the user closes the window */
@@ -2091,26 +2112,14 @@ int main(void) {
 			wasCameraToggleKeyPressed = false;
 		}
 		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-			if (!wasLeftCursorPressed) {
-				math::Vector4 cursorInClipSpace = math::Vector4{2 * ((f32) cursorX / (f32) windowWidth) - 1.0f, 2 * ((f32)cursorY / (f32)windowHeight) - 1.0f, -1.0f, 1.0f};
-
-				math::Matrix4 invProjection = math::inverseMatrix(ub.projection);
-
-				math::Vector4 cursorInViewSpace = math::multiplyMatrixVector(invProjection, cursorInClipSpace);
-
-				cursorInViewSpace = math::Vector4{cursorInViewSpace.x, cursorInViewSpace.y, -1.0f, 0.0f};
-
-				math::Matrix4 invView = math::inverseMatrix(ub.view);
-
-				math::Vector4 cursorInWorldSpaceVec4 = math::multiplyMatrixVector(invView, cursorInViewSpace);
-				cursorRay = math::Vector3{cursorInWorldSpaceVec4.x, cursorInWorldSpaceVec4.y, cursorInWorldSpaceVec4.z}.normalize();
-				cursorRayOrigin = cameraPosition;
+			if (!isLeftCursorPressed) {
+				cursorRay = calculateRayFromScreenToWorld(cursorX, cursorY, windowWidth, windowHeight, ub, cameraPosition);
 
 				cursorRayOrientation = math::convertEulerAnglesToQuaternionRotation(math::Vector3{ cameraPitch, -cameraYaw, 0.0f });
 
-				f32 cursorRayAngleFromCameraDirection = math::getAngleBetweenTwoVectors(cameraDirection, cursorRay);
+				f32 cursorRayAngleFromCameraDirection = math::getAngleBetweenTwoVectors(cameraDirection, cursorRay.direction);
 
-				math::Vector3 cursorNormal = cameraDirection.cross(cursorRay).normalize();
+				math::Vector3 cursorNormal = cameraDirection.cross(cursorRay.direction).normalize();
 
 				cursorRayOrientation = math::multiplyQuaternions(cursorRayOrientation, math::createQuaternionRotation( cursorRayAngleFromCameraDirection, cursorNormal ));
 
@@ -2118,8 +2127,8 @@ int main(void) {
 
 				selectedVoxelIndex = -1;
 				const f32 tmax = 100.0f;
-				wasCursorRayHit = 0;
-				f32 tmin = tmax;
+				isCursorRayHit = 0;
+				cursorRayHitDist = tmax;
 				for (i32 i = 0; i < voxelArray.voxelsCount; i++) {
 					OBB o = {};
 					o.center = convertVoxelUnitsToWorldUnits(voxelArray.voxelsPosition[i]);
@@ -2133,18 +2142,21 @@ int main(void) {
 					}
 					f32 t;
 					math::Vector3 q;
-					if (isRayIntersectingOBB(cursorRayOrigin, cursorRay, o, tmax, &t, &q) && t < tmin) {
-						tmin = t;
-						cursorRayHit = q;
+					if (isRayIntersectingOBB(cursorRay.origin, cursorRay.direction, o, tmax, &t, &q) && t < cursorRayHitDist) {
+						cursorRayHitDist = t;
+						cursorRayHitPoint = q;
 						selectedVoxelIndex = i;
-						wasCursorRayHit = 1;
+						isCursorRayHit = 1;
 					}
 				}
 			}
-			wasLeftCursorPressed = 1;
+			else if (isCursorRayHit) {
+				cursorRay = calculateRayFromScreenToWorld(cursorX, cursorY, windowWidth, windowHeight, ub, cameraPosition);
+			}
+			isLeftCursorPressed = 1;
 		}
 		else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
-			wasLeftCursorPressed = 0;
+			isLeftCursorPressed = 0;
 		}
 
 		if (isMovingCamera) {
@@ -2279,18 +2291,20 @@ int main(void) {
 				worldPosition = worldPosition.add(group->worldPosition.scale(voxelUnitsToWorldUnits));
 				rotationMatrix = math::createRotationMatrix(group->rotation);
 			}
-			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), worldPosition);
-			model = model.multiply(rotationMatrix);
-
-			model = math::scaleMatrix(model, math::Vector3{ (f32)voxelArray.voxelsScale[i].x, (f32)voxelArray.voxelsScale[i].y, (f32)voxelArray.voxelsScale[i].z }.scale(voxelUnitsToWorldUnits));
-			gpuObjectData.models[gpuObjectData.count] = model;
 			RGBAColorF32 color = voxelArray.colors[i];
 			if (selectedVoxelIndex == i) {
+				math::Vector3 cursorRayPoint = cursorRay.origin.add(cursorRay.direction.scale(cursorRayHitDist));
+				worldPosition = worldPosition.add(cursorRayPoint.sub(cursorRayHitPoint));
 				color.r = 0.5f * (color.r + selectedVoxelColorBlend.r);
 				color.g = 0.5f * (color.g + selectedVoxelColorBlend.g);
 				color.b = 0.5f * (color.b + selectedVoxelColorBlend.b);
 				color.a = 0.5f * (color.a + selectedVoxelColorBlend.a);
 			}
+			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), worldPosition);
+			model = model.multiply(rotationMatrix);
+
+			model = math::scaleMatrix(model, math::Vector3{ (f32)voxelArray.voxelsScale[i].x, (f32)voxelArray.voxelsScale[i].y, (f32)voxelArray.voxelsScale[i].z }.scale(voxelUnitsToWorldUnits));
+			gpuObjectData.models[gpuObjectData.count] = model;
 			gpuObjectData.rgbaColors[gpuObjectData.count] = color;
 			gpuObjectData.count += 1;
 		}
@@ -2325,8 +2339,8 @@ int main(void) {
 			gpuObjectData.count += 1;
 		}
 
-		if (wasCursorRayHit) {
-			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), cursorRayHit);
+		if (isCursorRayHit) {
+			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), cursorRayHitPoint);
 			model = model.multiply(math::createRotationMatrix(cursorRayOrientation));
 			model = math::scaleMatrix(model, math::Vector3{0.125f, 0.125f, 0.125f});
 			gpuObjectData.models[gpuObjectData.count] = model;
