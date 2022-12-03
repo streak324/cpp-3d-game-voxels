@@ -2284,21 +2284,27 @@ int main(void) {
 			math::Vector3 worldPosition = math::Vector3{ (f32)voxelArray.voxelsPosition[i].x, (f32)voxelArray.voxelsPosition[i].y, (f32)voxelArray.voxelsPosition[i].z }.scale(voxelUnitsToWorldUnits);
 
 			math::Matrix4 rotationMatrix = math::initIdentityMatrix();
+			RGBAColorF32 color = voxelArray.colors[i];
+			if (selectedVoxelIndex == i) {
+				math::Vector3 cursorRayPoint = cursorRay.origin.add(cursorRay.direction.scale(cursorRayHitDist));
+				if (voxelArray.voxelsGroupIndex[i] >= 0) {
+					VoxelGroup* g = &voxelArray.groups[voxelArray.voxelsGroupIndex[i]];
+					g->worldPosition = g->worldPosition.add(cursorRayPoint.sub(cursorRayHitPoint).scale(1.0f / voxelUnitsToWorldUnits));
+
+				}
+				cursorRayHitPoint = cursorRayPoint;
+				color.r = 0.5f * (color.r + selectedVoxelColorBlend.r);
+				color.g = 0.5f * (color.g + selectedVoxelColorBlend.g);
+				color.b = 0.5f * (color.b + selectedVoxelColorBlend.b);
+				color.a = 0.5f * (color.a + selectedVoxelColorBlend.a);
+			}
+
 			if (voxelArray.voxelsGroupIndex[i] >= 0) {
 				//if part of a group, the voxel's world position is now relative to the group's world position.
 				VoxelGroup* group = &voxelArray.groups[voxelArray.voxelsGroupIndex[i]];
 				worldPosition = math::rotateVector(worldPosition, group->rotation);
 				worldPosition = worldPosition.add(group->worldPosition.scale(voxelUnitsToWorldUnits));
 				rotationMatrix = math::createRotationMatrix(group->rotation);
-			}
-			RGBAColorF32 color = voxelArray.colors[i];
-			if (selectedVoxelIndex == i) {
-				math::Vector3 cursorRayPoint = cursorRay.origin.add(cursorRay.direction.scale(cursorRayHitDist));
-				worldPosition = worldPosition.add(cursorRayPoint.sub(cursorRayHitPoint));
-				color.r = 0.5f * (color.r + selectedVoxelColorBlend.r);
-				color.g = 0.5f * (color.g + selectedVoxelColorBlend.g);
-				color.b = 0.5f * (color.b + selectedVoxelColorBlend.b);
-				color.a = 0.5f * (color.a + selectedVoxelColorBlend.a);
 			}
 			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), worldPosition);
 			model = model.multiply(rotationMatrix);
