@@ -7,16 +7,11 @@
 
 const f32 voxelUnitsToWorldUnits = 0.25f;
 
-struct RGBAColorF32 {
-	f32 r, b, g, a;
-};
-
 struct Vector3i {
 	i32 x;
 	i32 y;
 	i32 z;
 };
-
 
 struct Vector3ui {
 	u32 x;

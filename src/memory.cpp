@@ -1,6 +1,7 @@
 #include "memory.h"
 
 void initMemoryAllocator(MemoryAllocator *allocator, u64 capacity) {
+	(u8*) malloc(capacity);
 	allocator->memory = (u8*) malloc(capacity);
 	allocator->byteOffset = 0;
 	allocator->byteCapacity = capacity;

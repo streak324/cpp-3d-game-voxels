@@ -136,6 +136,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\renderer.cpp" />
     <ClCompile Include="src\collision.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\common.cpp" />
@@ -151,6 +152,7 @@
     <ClCompile Include="src\voxel.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\renderer.h" />
     <ClInclude Include="src\collision.h" />
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\math.h" />
