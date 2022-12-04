@@ -769,7 +769,7 @@ int initRenderer(Renderer* renderer, GLFWwindow* window, MemoryAllocator* memory
 	u32 presentQueueFamilyIndex = 0;
 
 	vkGetPhysicalDeviceQueueFamilyProperties(renderer->physicalDevice, &queueFamilyCount, nil);
-	VkQueueFamilyProperties* queueFamilyProperties = (VkQueueFamilyProperties*) allocateMemory(memoryAllocator, queueFamilyCount * sizeof(VkQueueFamilyProperties));
+	VkQueueFamilyProperties* queueFamilyProperties = (VkQueueFamilyProperties*) _malloca(queueFamilyCount * sizeof(VkQueueFamilyProperties));
 	vkGetPhysicalDeviceQueueFamilyProperties(renderer->physicalDevice, &queueFamilyCount, queueFamilyProperties);
 	printf("%d queue families\n", queueFamilyCount);
 	for (u32 i = 0; i < queueFamilyCount; i++) {

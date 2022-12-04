@@ -48,6 +48,20 @@ Ray calculateRayFromScreenToWorld(f32 cursorX, f32 cursorY, int windowWidth, int
 	return r;
 }
 
+struct WorldEditorConfig {
+	bool isGridVisible;
+	bool isSnapToGridEnabled;
+	i32 voxelGridWidth;
+	i32 voxelGridHeight;
+	i32 voxelGridUnitSize;
+};
+
+f64 scrollWheelOffset;
+
+void scrollCallback(GLFWwindow *window, double xoffset, double yoffset) {
+	scrollWheelOffset = yoffset;
+}
+
 int main(void) {
 	f64 loadStartTime = glfwGetTime();
 #ifndef NDEBUG
@@ -74,7 +88,7 @@ int main(void) {
 	MemoryAllocator* memoryAllocator;
 	{
 		MemoryAllocator tmp;
-		initMemoryAllocator(&tmp, gigabyte(2));
+		initMemoryAllocator(&tmp, gigabyte(1));
 		memoryAllocator = &tmp;
 	}
 
@@ -149,13 +163,15 @@ int main(void) {
 			glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 		}
 	}
+	glfwSetScrollCallback(window, scrollCallback);
 
-	bool isDisplayingGrid = true;
+	WorldEditorConfig worldEditorConfig;
+	worldEditorConfig = {};
+	worldEditorConfig.voxelGridWidth = 64;
+	worldEditorConfig.voxelGridHeight = 32;
+	worldEditorConfig.voxelGridUnitSize = 8;
 
 	i32 maxVoxelGridUnitSize = 16;
-	i32 voxelGridUnitSize = 8;
-	i32 voxelGridWidth = 64;
-	i32 voxelGridHeight = 32;
 
 	i32 selectedVoxelIndex = -1;
 	RGBAColorF32 selectedVoxelColorBlend = { 1.0f, 1.0f, 0.0f, 0.1f };
@@ -200,6 +216,7 @@ int main(void) {
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
 		frameCounter = (frameCounter + 1) % MAX_FRAMES_IN_FLIGHT;
+		scrollWheelOffset = 0.0f;
 		/* Poll for and process events */
 		glfwPollEvents();
 
@@ -294,6 +311,10 @@ int main(void) {
 			}
 			else if (isCursorRayHit) {
 				cursorRay = calculateRayFromScreenToWorld(cursorX, cursorY, windowWidth, windowHeight, ub, cameraPosition);
+				if (scrollWheelOffset != 0.0f) {
+					cursorRayHitDist += (20*scrollWheelOffset*timestep);
+					printf("cursor ray hist distance: %f\n", cursorRayHitDist);
+				}
 			}
 			isLeftCursorPressed = 1;
 		}
@@ -448,7 +469,7 @@ int main(void) {
 		}
 
 
-		{ //handle transparent objects
+		if (selectedVoxelIndex >= 0){ //handle transparent objects
 			math::Matrix4 otherModel = gpuObjectData.models[gpuObjectData.count - 1];
 			RGBAColorF32 otherColor = gpuObjectData.rgbaColors[gpuObjectData.count - 1];
 			gpuObjectData.models[gpuObjectData.count - 1] = gpuObjectData.models[selectedVoxelIndex];
@@ -457,24 +478,26 @@ int main(void) {
 			gpuObjectData.rgbaColors[selectedVoxelIndex] = otherColor;
 		}
 
-		f32 lineThickness = 0.06125f;
-		RGBAColorF32 gridColor = {1.0f, 0.0f, 0.0f, 0.1f};
-		for (i32 i = 0; i < voxelGridWidth+1; i++) {
-			f32 zLength = -(f32) (voxelGridHeight * voxelGridUnitSize) * voxelUnitsToWorldUnits;
-			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ (f32) (voxelGridUnitSize * i) * voxelUnitsToWorldUnits , 0.0f, 0.5f * zLength });
-			model = math::scaleMatrix(model, math::Vector3{ lineThickness, lineThickness, (f32) zLength });
-			gpuObjectData.models[gpuObjectData.count] = model;
-			gpuObjectData.rgbaColors[gpuObjectData.count] = gridColor;
-			gpuObjectData.count += 1;
-		}
+		if (worldEditorConfig.isGridVisible) {
+			f32 lineThickness = 0.06125f;
+			RGBAColorF32 gridColor = {1.0f, 0.0f, 0.0f, 0.1f};
+			for (i32 i = 0; i < worldEditorConfig.voxelGridWidth + 1; i++) {
+				f32 zLength = -(f32)(worldEditorConfig.voxelGridHeight * worldEditorConfig.voxelGridUnitSize) * voxelUnitsToWorldUnits;
+				math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ (f32)(worldEditorConfig.voxelGridUnitSize * i) * voxelUnitsToWorldUnits , 0.0f, 0.5f * zLength });
+				model = math::scaleMatrix(model, math::Vector3{ lineThickness, lineThickness, (f32)zLength });
+				gpuObjectData.models[gpuObjectData.count] = model;
+				gpuObjectData.rgbaColors[gpuObjectData.count] = gridColor;
+				gpuObjectData.count += 1;
+			}
 
-		for (i32 i = 0; i < voxelGridHeight+1; i++) {
-			f32 columnLength = (f32)(voxelGridWidth * voxelGridUnitSize) * voxelUnitsToWorldUnits;
-			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.5f * columnLength, 0.0f, -(f32)(voxelGridUnitSize * i) * voxelUnitsToWorldUnits});
-			model = math::scaleMatrix(model, math::Vector3{columnLength, lineThickness, lineThickness });
-			gpuObjectData.models[gpuObjectData.count] = model;
-			gpuObjectData.rgbaColors[gpuObjectData.count] = gridColor;
-			gpuObjectData.count += 1;
+			for (i32 i = 0; i < worldEditorConfig.voxelGridHeight + 1; i++) {
+				f32 columnLength = (f32)(worldEditorConfig.voxelGridWidth * worldEditorConfig.voxelGridUnitSize) * voxelUnitsToWorldUnits;
+				math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), math::Vector3{ 0.5f * columnLength, 0.0f, -(f32)(worldEditorConfig.voxelGridUnitSize * i) * voxelUnitsToWorldUnits});
+				model = math::scaleMatrix(model, math::Vector3{columnLength, lineThickness, lineThickness });
+				gpuObjectData.models[gpuObjectData.count] = model;
+				gpuObjectData.rgbaColors[gpuObjectData.count] = gridColor;
+				gpuObjectData.count += 1;
+			}
 		}
 
 		if (isCursorRayHit) {
@@ -530,13 +553,17 @@ int main(void) {
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
             ImGui::ColorEdit3("clear color", (float*)&clearColor); // Edit 3 floats representing a color
 
-			ImGui::InputInt("Voxel Grid Width", &voxelGridWidth);
-			ImGui::InputInt("Voxel Grid Height", &voxelGridHeight);
-			ImGui::InputInt("Voxel Grid Cell Size", &voxelGridUnitSize);
 
-			voxelGridWidth = MIN(MAX(1, voxelGridWidth), 1024);
-			voxelGridHeight = MIN(MAX(1, voxelGridHeight), 1024);
-			voxelGridUnitSize = MIN(MAX(1, voxelGridUnitSize), maxVoxelGridUnitSize);
+			ImGui::Checkbox("Show Grid", &worldEditorConfig.isGridVisible);
+			if (worldEditorConfig.isGridVisible) {
+				ImGui::InputInt("Voxel Grid Width", &worldEditorConfig.voxelGridWidth);
+				ImGui::InputInt("Voxel Grid Height", &worldEditorConfig.voxelGridHeight);
+				ImGui::InputInt("Voxel Grid Cell Size", &worldEditorConfig.voxelGridUnitSize);
+			}
+
+			worldEditorConfig.voxelGridWidth = MIN(MAX(1, worldEditorConfig.voxelGridWidth), 1024);
+			worldEditorConfig.voxelGridHeight = MIN(MAX(1, worldEditorConfig.voxelGridHeight), 1024);
+			worldEditorConfig.voxelGridUnitSize = MIN(MAX(1, worldEditorConfig.voxelGridUnitSize), maxVoxelGridUnitSize);
 
             if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
