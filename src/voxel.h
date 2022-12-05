@@ -20,10 +20,9 @@ struct Vector3ui {
 };
 
 struct VoxelGroup {
-	math::Vector3 worldPosition;
+	math::Vector3 position;
 	math::Quaternion rotation;
-	u32 start;
-	u32 end;
+	i32 voxelsCount;
 };
 
 struct VoxelArray {
@@ -43,8 +42,12 @@ struct VoxelArray {
 };
 
 void initVoxelArray(VoxelArray* voxelArray, MemoryAllocator* memoryAllocator, i32 voxelCapacity, i32 groupsCapacity);
-i32 addVoxel(VoxelArray* voxelArray, RGBAColorF32 color, Vector3i position, Vector3ui scale);
-i32 addVoxelGroupFromVoxelRange(VoxelArray* voxelArray, u32 start, u32 end, math::Vector3 worldPosition);
+//lives in its own voxel group. returns voxel index
+i32 addStandaloneVoxel(VoxelArray* voxelArray, RGBAColorF32 color, Vector3i position, Vector3ui scale);
+//returns voxel index
+i32 addVoxelToGroup(VoxelArray* voxelArray, RGBAColorF32 color, Vector3i position, Vector3ui scale, i32 groupIndex);
+//returns voxel group index
+i32 addEmptyVoxelGroup(VoxelArray* voxelArray, math::Vector3 position);
 
 math::Vector3 convertVoxelUnitsToWorldUnits(Vector3i v);
 math::Vector3 convertVoxelUnitsToWorldUnits(Vector3ui v);

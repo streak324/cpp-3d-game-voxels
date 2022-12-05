@@ -106,33 +106,32 @@ int main(void) {
 
 	RGBAColorF32 colorWhite = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-	i32 g1 = addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 0, 0 }, Vector3ui{ 8, 8, 8 });
-	i32 g2 = addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 0, 0 }, Vector3ui{ 8, 8, 8 });
+	i32 mainVoxelGroup = addEmptyVoxelGroup(&voxelArray, math::Vector3{});
 
-	addVoxelGroupFromVoxelRange(&voxelArray, g1, g1, math::Vector3{ 12, 0, -30 });
-	addVoxelGroupFromVoxelRange(&voxelArray, g2, g2, math::Vector3{ -12, 0, -30 });
+	addStandaloneVoxel(&voxelArray, colorWhite, Vector3i{ 12, 0, -30 }, Vector3ui{ 8, 8, 8 });
+	addStandaloneVoxel(&voxelArray, colorWhite, Vector3i{ -12, 0, -30 }, Vector3ui{ 8, 8, 8 });
 
-	addVoxel(&voxelArray, {0.0f, 1.0f, 1.0f, 0.2f}, Vector3i{0, 12, -40}, Vector3ui{8, 8, 8});
-	addVoxel(&voxelArray, colorWhite, Vector3i{24, 12, -30}, Vector3ui{ 8, 8, 2 });
-	addVoxel(&voxelArray, colorWhite, Vector3i{36, 12, -30}, Vector3ui{ 8, 8, 1 });
-	addVoxel(&voxelArray, colorWhite, Vector3i{-10, 12, -30}, Vector3ui{ 8, 8, 8 });
-	addVoxel(&voxelArray, colorWhite, Vector3i{10, 12, -30}, Vector3ui{ 8, 8, 8 });
-	addVoxel(&voxelArray, colorWhite, Vector3i{-24, 12, -30}, Vector3ui{ 1, 1, 1 });
+	addVoxelToGroup(&voxelArray, {0.0f, 1.0f, 1.0f, 0.2f}, Vector3i{0, 12, -40}, Vector3ui{8, 8, 8}, mainVoxelGroup);
+	addVoxelToGroup(&voxelArray, colorWhite, Vector3i{24, 12, -30}, Vector3ui{ 8, 8, 2 }, mainVoxelGroup);
+	addVoxelToGroup(&voxelArray, colorWhite, Vector3i{36, 12, -30}, Vector3ui{ 8, 8, 1 }, mainVoxelGroup);
+	addVoxelToGroup(&voxelArray, colorWhite, Vector3i{-10, 12, -30}, Vector3ui{ 8, 8, 8 }, mainVoxelGroup);
+	addVoxelToGroup(&voxelArray, colorWhite, Vector3i{10, 12, -30}, Vector3ui{ 8, 8, 8 }, mainVoxelGroup);
+	addVoxelToGroup(&voxelArray, colorWhite, Vector3i{-24, 12, -30}, Vector3ui{ 1, 1, 1 }, mainVoxelGroup);
 
 	{
-		u32 start = addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 0, 0 }, Vector3ui{ 2, 2, 2 });
-		addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 2, 0 }, Vector3ui{ 2, 2, 2 });
-		addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 4, 0 }, Vector3ui{ 2, 2, 2 });
-		addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 6, 0 }, Vector3ui{ 2, 2, 2 });
-		u32 end = addVoxel(&voxelArray, colorWhite, Vector3i{ 0, 8, 0 }, Vector3ui{ 2, 2, 2 });
-
-		addVoxelGroupFromVoxelRange(&voxelArray, start, end, math::Vector3{0, 0, -30.0f});
+		i32 g1 = addEmptyVoxelGroup(&voxelArray, math::Vector3{0, 0, -30.0f});
+		addVoxelToGroup(&voxelArray, colorWhite, Vector3i{ 0, 0, 0 }, Vector3ui{ 2, 2, 2 }, g1);
+		addVoxelToGroup(&voxelArray, colorWhite, Vector3i{ 0, 2, 0 }, Vector3ui{ 2, 2, 2 }, g1);
+		addVoxelToGroup(&voxelArray, colorWhite, Vector3i{ 0, 4, 0 }, Vector3ui{ 2, 2, 2 }, g1);
+		addVoxelToGroup(&voxelArray, colorWhite, Vector3i{ 0, 6, 0 }, Vector3ui{ 2, 2, 2 }, g1);
+		addVoxelToGroup(&voxelArray, colorWhite, Vector3i{ 0, 8, 0 }, Vector3ui{ 2, 2, 2 }, g1);
 	}
 	{
-		u32 i1 = addVoxel(&voxelArray, { 0.8f, 1.0f, 0.0f, 1.0f }, Vector3i{ 0, 0, 0 }, Vector3ui{2, 2, 4});
-		u32 i2 = addVoxel(&voxelArray, { 0.5f, 0.0f, 1.0f, 1.0f }, Vector3i{ 0, 0, 0 }, Vector3ui{2, 2, 4});
-		i32 g1 = addVoxelGroupFromVoxelRange(&voxelArray, i1, i1, math::Vector3{ 0, 0, -50 });
-		i32 g2 = addVoxelGroupFromVoxelRange(&voxelArray, i2, i2, math::Vector3{ 0, 0, -60 });
+
+		i32 g1 = addEmptyVoxelGroup(&voxelArray, math::Vector3{ 0, 0, -50 });
+		i32 g2 = addEmptyVoxelGroup(&voxelArray, math::Vector3{ 0, 0, -60 });
+		addVoxelToGroup(&voxelArray, { 0.8f, 1.0f, 0.0f, 1.0f }, Vector3i{ 0, 0, 0 }, Vector3ui{2, 2, 4}, g1);
+		addVoxelToGroup(&voxelArray, { 0.5f, 0.0f, 1.0f, 1.0f }, Vector3i{ 0, 0, 0 }, Vector3ui{2, 2, 4}, g2);
 		voxelArray.groups[g1].rotation = math::createQuaternionRotation(1.604749, { 0.067773, 0.995257, -0.069782 });
 
 		voxelArray.groups[g2].rotation = math::createQuaternionRotation(PI32 / 4.0f, { 0.0f, 1.0f, 0.0f });
@@ -296,7 +295,7 @@ int main(void) {
 
 					i32 voxelGroupIndex = voxelArray.voxelsGroupIndex[i];
 					if (voxelGroupIndex >= 0) {
-						o.center = math::rotateVector(o.center, voxelArray.groups[voxelGroupIndex].rotation).add(voxelArray.groups[voxelGroupIndex].worldPosition.scale(voxelUnitsToWorldUnits));
+						o.center = math::rotateVector(o.center, voxelArray.groups[voxelGroupIndex].rotation).add(voxelArray.groups[voxelGroupIndex].position.scale(voxelUnitsToWorldUnits));
 						o.orientation = voxelArray.groups[voxelGroupIndex].rotation;
 					}
 					f32 t;
@@ -425,11 +424,11 @@ int main(void) {
 
 		memcpy(renderer->uniformBuffers[frameCounter].mappedData, &ub, sizeof(ub));
 
-		voxelArray.groups[0].rotation = math::createQuaternionRotation(fmodf((float)glfwGetTime(), TAU32), math::Vector3{ 1.0f, 0.0f, 0.0f });
+		voxelArray.groups[1].rotation = math::createQuaternionRotation(fmodf((float)glfwGetTime(), TAU32), math::Vector3{ 1.0f, 0.0f, 0.0f });
 
-		voxelArray.groups[1].rotation = math::createQuaternionRotation(fmodf((float)glfwGetTime(), TAU32), math::Vector3{ 0.0f, 1.0f, 0.0f });
+		voxelArray.groups[2].rotation = math::createQuaternionRotation(fmodf((float)glfwGetTime(), TAU32), math::Vector3{ 0.0f, 1.0f, 0.0f });
 
-		voxelArray.groups[2].rotation = math::createQuaternionRotation(fmodf((float) glfwGetTime(), TAU32), math::Vector3{ 1.0f, 0.0f, 1.0f }.normalize());
+		voxelArray.groups[3].rotation = math::createQuaternionRotation(fmodf((float) glfwGetTime(), TAU32), math::Vector3{ 1.0f, 0.0f, 1.0f }.normalize());
 
 		gpuObjectData.count = 0;
 
@@ -442,7 +441,7 @@ int main(void) {
 				math::Vector3 cursorRayPoint = cursorRay.origin.add(cursorRay.direction.scale(cursorRayHitDist));
 				if (voxelArray.voxelsGroupIndex[i] >= 0) {
 					VoxelGroup* g = &voxelArray.groups[voxelArray.voxelsGroupIndex[i]];
-					g->worldPosition = g->worldPosition.add(cursorRayPoint.sub(cursorRayHitPoint).scale(1.0f / voxelUnitsToWorldUnits));
+					g->position = g->position.add(cursorRayPoint.sub(cursorRayHitPoint).scale(1.0f / voxelUnitsToWorldUnits));
 
 				}
 				cursorRayHitPoint = cursorRayPoint;
@@ -456,7 +455,7 @@ int main(void) {
 				//if part of a group, the voxel's world position is now relative to the group's world position.
 				VoxelGroup* group = &voxelArray.groups[voxelArray.voxelsGroupIndex[i]];
 				worldPosition = math::rotateVector(worldPosition, group->rotation);
-				worldPosition = worldPosition.add(group->worldPosition.scale(voxelUnitsToWorldUnits));
+				worldPosition = worldPosition.add(group->position.scale(voxelUnitsToWorldUnits));
 				rotationMatrix = math::createRotationMatrix(group->rotation);
 			}
 			math::Matrix4 model = math::translateMatrix(math::initIdentityMatrix(), worldPosition);
@@ -479,7 +478,7 @@ int main(void) {
 		}
 
 		if (worldEditorConfig.isGridVisible) {
-			f32 lineThickness = 0.06125f;
+			f32 lineThickness = 0.015625;
 			RGBAColorF32 gridColor = {1.0f, 0.0f, 0.0f, 0.1f};
 			for (i32 i = 0; i < worldEditorConfig.voxelGridWidth + 1; i++) {
 				f32 zLength = -(f32)(worldEditorConfig.voxelGridHeight * worldEditorConfig.voxelGridUnitSize) * voxelUnitsToWorldUnits;
